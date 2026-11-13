@@ -3,13 +3,13 @@
 이 폴더를 Android Studio 프로젝트 루트로 사용합니다. (New Project 생성 위치를 `drive-together/android`로 지정)
 
 - 언어/UI: Kotlin, Jetpack Compose
-- 패키지: `com.drivetogether`
+- 패키지: `com.gachigayo`
 - 단일 `app` 모듈 + 기능별(feature) 패키지 구조
 
 ## 패키지 구조
 
 ```
-app/src/main/java/com/drivetogether/
+app/src/main/java/com/gachigayo/
 ├── core/
 │   ├── designsystem/    # 색상, 타이포, 공통 컴포넌트 (버튼, 말풍선, 바텀시트)
 │   ├── network/         # Retrofit, WebSocket(OkHttp) 클라이언트 설정
