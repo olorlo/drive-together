@@ -15,7 +15,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -39,12 +38,12 @@ fun HomeScreen(status: VehicleStatus, onRefresh: () -> Unit) {
         Column(
             modifier = Modifier
                 .widthIn(max = 640.dp)
-                .background(Color.White, RoundedCornerShape(32.dp))
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp))
                 .padding(40.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text("같이 가요", fontSize = 40.sp, color = GachiColors.Ink)
+            Text("같이 가요", fontSize = 40.sp, color = MaterialTheme.colorScheme.onSurface)
             Text("Vehicle SDK 연결 확인", fontSize = 18.sp, color = GachiColors.Muted)
 
             val (title, detail) = when (status) {
@@ -53,7 +52,7 @@ fun HomeScreen(status: VehicleStatus, onRefresh: () -> Unit) {
                     (status.odometerKm?.let { "누적 주행거리 %.1f km".format(it) } ?: "주행거리 값 없음")
                 is VehicleStatus.Error -> "연결 실패 ⚠️" to status.message
             }
-            Text(title, fontSize = 28.sp, color = GachiColors.Ink)
+            Text(title, fontSize = 28.sp, color = MaterialTheme.colorScheme.onSurface)
             if (detail.isNotEmpty()) Text(detail, fontSize = 20.sp, color = GachiColors.Muted)
 
             Button(onClick = onRefresh, modifier = Modifier.height(64.dp)) {
