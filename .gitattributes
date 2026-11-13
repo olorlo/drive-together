@@ -1,0 +1,15 @@
+# 줄바꿈을 LF로 통일 (Windows/Mac 혼용 대비)
+* text=auto eol=lf
+
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+gradlew text eol=lf
+
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.jar  binary
+*.ttf  binary
+*.otf  binary

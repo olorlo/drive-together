@@ -1,0 +1,42 @@
+# ===== OS / IDE =====
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# ===== Gradle (공통) =====
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+.kotlin/
+
+# ===== Android =====
+android/local.properties
+android/**/release/
+android/captures/
+android/.externalNativeBuild/
+android/.cxx/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.jks
+*.keystore
+google-services.json
+
+# ===== Spring Boot =====
+server/out/
+server/bin/
+server/src/main/resources/application-local.yml
+server/src/main/resources/application-local.yaml
+server/src/main/resources/application-secret.yml
+*.log
+logs/
+
+# ===== 비밀값 =====
+.env
+.env.*
+!.env.example
