@@ -1,0 +1,988 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>같이 가요 시연</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Inter:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: 왼쪽 차량 화면(1280x720 고정, 비율 유지 축소) + 오른쪽 시연 콘솔 */
+:root{
+  --bg:#F2F4F5; --panel:#FFFFFF; --ink:#1B2430; --muted:#5B6673; --line:#E2E6EA; --soft:#F1F3F5;
+  --accent:#087F70; --accent-ink:#FFFFFF; --accent-soft:rgba(8,127,112,.10);
+  --font:"Noto Sans KR","Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;
+  --num:Inter,"Noto Sans KR",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F1419; --panel:#1A2128; --ink:#E9EEF2; --muted:#A3AEB9; --line:#2C353F; --soft:#222A33;
+    --accent:#3CC4B0; --accent-ink:#0F1419; --accent-soft:rgba(60,196,176,.14); color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F1419; --panel:#1A2128; --ink:#E9EEF2; --muted:#A3AEB9; --line:#2C353F; --soft:#222A33;
+  --accent:#3CC4B0; --accent-ink:#0F1419; --accent-soft:rgba(60,196,176,.14); color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);line-height:1.5;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer}
+button:disabled{cursor:not-allowed}
+:focus-visible{outline:3px solid #3CC4B0;outline-offset:2px}
+
+.page{max-width:1780px;margin:0 auto;padding-block:22px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px 28px;margin-bottom:16px}
+.brand{display:flex;align-items:center;gap:14px;min-width:0}
+.brand h1{margin:0;font-size:28px;font-weight:700;letter-spacing:-.01em;text-wrap:balance}
+.brand p{margin:2px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
+.viewer{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.viewer .lbl{font-size:13px;color:var(--muted);margin-right:2px}
+.vbtn{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:6px 14px 6px 6px;font-size:15px;font-weight:500}
+.vbtn small{color:var(--muted);font-size:12px;font-weight:400}
+.vbtn[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.vdot{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:700}
+
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
+@media (max-width:1180px){.layout{grid-template-columns:minmax(0,1fr)}}
+.stage{min-width:0}
+.frame{width:calc(1304px * var(--s,1));height:calc(744px * var(--s,1))}
+.bezel{width:1304px;height:744px;padding:12px;border-radius:30px;background:#11161B;transform:scale(var(--s,1));transform-origin:0 0;box-shadow:0 24px 50px -30px rgba(10,20,30,.55)}
+.foot{font-size:12.5px;color:var(--muted);margin:10px 2px 0;max-width:100ch}
+.foot b{font-weight:500;color:var(--ink)}
+
+/* ================= 차량 화면 (항상 주간 차량 UI) ================= */
+.screen{--p:#087F70;--pl:#3CC4B0;--acc:#FFC845;--ink:#1B2430;--muted:#5B6673;--line:#E2E6EA;--soft:#F1F3F5;--surf:#FFFFFF;
+  width:1280px;height:720px;border-radius:20px;overflow:hidden;position:relative;background:#EEF1F0;color:var(--ink);font-family:var(--font);color-scheme:light}
+.sbar{position:absolute;inset:0 0 auto 0;height:44px;z-index:40;display:flex;align-items:center;justify-content:space-between;padding:0 18px;background:rgba(255,255,255,.92);border-bottom:1px solid var(--line);font-size:15px}
+.sbar .l,.sbar .r{display:flex;gap:14px;align-items:center;min-width:300px}
+.sbar .r{justify-content:flex-end}
+.sbar .mid{display:flex;align-items:center;gap:8px;font-weight:700}
+.sbar .mid small{font-weight:400;color:var(--muted);font-size:13px}
+.num{font-family:var(--num);font-variant-numeric:tabular-nums}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:8px;padding:2px 9px;background:var(--soft);font-size:13px;font-weight:500}
+.ndot{width:7px;height:7px;border-radius:50%;background:#1F9D6B;display:inline-block}
+.ndot.bad{background:#D64545}
+
+.map{position:absolute;inset:44px 0 0 0;overflow:hidden}
+#gl{position:absolute;inset:0;opacity:0;transition:opacity .4s}
+#gl.on{opacity:1}
+#illu{position:absolute;inset:0;width:100%;height:100%;display:block}
+.ov{position:absolute;inset:0;pointer-events:none}
+.ov > *{position:absolute;left:0;top:0;will-change:transform}
+.city{font-size:13px;font-weight:500;color:#7B8792;white-space:nowrap;transform-origin:0 0;text-shadow:0 0 3px #EEF1F0,0 0 3px #EEF1F0}
+.city.big{font-size:16px;font-weight:700;color:#5E6B77}
+.pin{display:flex;align-items:center;gap:6px;padding:4px 9px 4px 4px;border-radius:9px;background:#fff;border:1px solid var(--line);font-size:12.5px;font-weight:500;white-space:nowrap;box-shadow:0 2px 6px rgba(15,23,32,.12)}
+.pin i{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;background:rgba(8,127,112,.1)}
+.pin.on{background:var(--p);color:#fff;border-color:var(--p)}
+.pin.on i{background:rgba(255,255,255,.2)}
+.pin.dest i{background:#1B2430}
+.car{width:0;height:0}
+.car .rot{position:absolute;left:-23px;top:-15px;width:46px;height:30px}
+.car .halo{position:absolute;left:-30px;top:-30px;width:60px;height:60px;border-radius:50%;background:rgba(8,127,112,.16);animation:halo 2.4s ease-out infinite}
+@keyframes halo{0%{transform:scale(.6);opacity:1}100%{transform:scale(1.4);opacity:0}}
+.car .tag{position:absolute;top:20px;left:50%;transform:translateX(-50%);white-space:nowrap;background:#fff;border:1.5px solid var(--c);border-radius:999px;padding:0 9px;font-size:12.5px;font-weight:500;line-height:21px;box-shadow:0 2px 6px rgba(15,23,32,.12)}
+.car.me .tag{background:var(--c);color:#fff;font-weight:700}
+.car.off{opacity:.5}
+.car.off .tag{border-style:dashed}
+.bub{position:absolute;left:16px;bottom:16px;pointer-events:auto;border:0;white-space:nowrap;border-radius:12px 12px 12px 4px;padding:6px 12px;font-size:14px;font-weight:700;background:#fff;color:var(--ink);box-shadow:0 4px 12px rgba(15,23,32,.18);display:flex;align-items:center;gap:6px}
+.bub.q{background:var(--acc);animation:bob 1.3s ease-in-out infinite}
+.bub.q .one{min-width:20px;height:20px;border-radius:10px;background:#1B2430;color:#fff;font-size:12px;line-height:20px;text-align:center;padding:0 5px}
+.bub.ok{background:#E3F4F1;color:#065E53}
+.bub.rest{background:#fff;color:var(--muted);font-weight:500}
+.pop{animation:popin .32s cubic-bezier(.3,1.5,.6,1)}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes popin{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+
+/* overlays */
+.ui{position:absolute;inset:0;pointer-events:none}
+.ui > *{pointer-events:auto}
+.card{background:var(--surf);border:1px solid var(--line);border-radius:16px;box-shadow:0 10px 24px -16px rgba(15,23,32,.45)}
+.turn{position:absolute;top:16px;left:16px;width:340px;display:flex;gap:14px;align-items:center;padding:14px 16px;border-radius:16px;background:var(--p);color:#fff;box-shadow:0 10px 22px -12px rgba(8,127,112,.7)}
+.turn .ar{width:60px;height:60px;border-radius:12px;background:#fff;display:grid;place-items:center;flex:none}
+.turn .d{font-family:var(--num);font-size:30px;font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums}
+.turn .w{font-size:15px;font-weight:500;opacity:.95}
+.turn.rest{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.turn.rest .ar{background:var(--soft)}
+.grp{position:absolute;top:16px;right:16px;width:300px;padding:12px 16px 6px}
+.grp h4{margin:0 0 4px;font-size:15px;display:flex;justify-content:space-between;align-items:baseline}
+.grp h4 small{font-size:12px;color:var(--muted);font-weight:400}
+.gr{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.av{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700;flex:none}
+.gr .nm{font-size:14.5px;font-weight:500;line-height:1.2}
+.gr .st{font-size:12px;color:var(--muted)}
+.chip{display:inline-flex;align-items:center;gap:4px;font-family:var(--num);font-size:12.5px;font-weight:500;color:var(--muted)}
+.qbtn{border:0;border-radius:8px;padding:3px 9px;background:var(--acc);font-size:12px;font-weight:700}
+.bar{position:absolute;left:16px;right:16px;bottom:16px;height:88px;display:flex;align-items:center;gap:12px;padding:0 14px 0 24px}
+.eta b{font-family:var(--num);font-size:30px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.eta b span{font-family:var(--font);font-size:17px;font-weight:500}
+.eta small{display:block;font-size:13.5px;color:var(--muted);margin-top:3px}
+.eta .chg{font-size:13px;font-weight:700;color:var(--p);margin-left:8px}
+.sp{flex:1}
+.kb{height:60px;border:0;border-radius:12px;padding:0 20px;font-size:17px;font-weight:700;background:var(--soft);color:var(--ink);display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.kb.t{background:rgba(8,127,112,.10);color:var(--p)}
+.kb.p{background:var(--p);color:#fff}
+.kb.y{background:var(--acc);color:var(--ink)}
+.kb.o{background:#fff;border:1px solid var(--line);font-weight:500}
+.kb:disabled{opacity:.4}
+.kb.sm{height:46px;font-size:15px;padding:0 14px}
+.zoom{position:absolute;right:16px;bottom:120px;display:flex;flex-direction:column;gap:8px}
+.zoom button{width:52px;height:52px;border-radius:12px;border:1px solid var(--line);background:#fff;font-family:var(--num);font-size:22px;font-weight:600;box-shadow:0 6px 14px -10px rgba(15,23,32,.5)}
+.zoom button[aria-pressed="true"]{background:var(--p);color:#fff;border-color:var(--p)}
+.zoom .fit{font-family:var(--font);font-size:14px}
+.toast{position:absolute;top:16px;left:50%;transform:translateX(-50%);z-index:30;border:0;background:#1B2430;color:#fff;border-radius:14px;padding:11px 22px;font-size:17px;font-weight:700;text-align:center;box-shadow:0 12px 26px -12px rgba(0,0,0,.5);animation:drop .4s cubic-bezier(.3,1.4,.6,1);max-width:560px}
+.toast small{display:block;font-size:13px;font-weight:400;opacity:.85}
+@keyframes drop{from{transform:translate(-50%,-24px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+.nudge{position:absolute;left:16px;bottom:118px;display:flex;align-items:center;gap:12px;padding:10px 12px 10px 16px;font-size:16px;font-weight:500}
+.mini{position:absolute;left:16px;bottom:118px;display:flex;align-items:center;gap:12px;padding:8px 14px 8px 8px;font-size:14px}
+.mini .art{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#087F70,#3CC4B0);display:grid;place-items:center}
+.mini .t{font-weight:700;line-height:1.2}
+.mini .s{font-size:12px;color:var(--muted)}
+.mini .prog{width:120px;height:4px;border-radius:2px;background:var(--soft);overflow:hidden}
+.mini .prog i{display:block;height:100%;background:var(--p)}
+.avs{display:flex}
+.avs .av{width:24px;height:24px;border-radius:7px;font-size:11px;border:2px solid #fff;margin-left:-6px}
+.avs .av:first-child{margin-left:0}
+
+/* 질문 카드 */
+.ask{position:absolute;top:16px;right:332px;width:420px;padding:16px;z-index:20;display:flex;flex-direction:column;gap:12px;animation:popin .28s cubic-bezier(.3,1.3,.6,1);transform-origin:100% 0}
+.ask .hd{display:flex;align-items:center;gap:10px}
+.ask .hd b{flex:1;font-size:14.5px}
+.ask .hd .x{width:36px;height:36px;border-radius:10px;border:0;background:var(--soft);display:grid;place-items:center}
+.ask p{margin:0;font-size:18px;line-height:1.5;font-weight:500}
+.meta{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:13px;color:var(--muted)}
+.votes{display:flex;flex-wrap:wrap;gap:6px}
+.vt{display:inline-flex;align-items:center;gap:6px;border-radius:8px;padding:3px 9px 3px 3px;background:var(--soft);font-size:12.5px;font-weight:500}
+.vt .av{width:22px;height:22px;border-radius:6px;font-size:10.5px}
+.vt.wait{background:transparent;border:1px dashed var(--line);color:var(--muted)}
+.acts{display:flex;gap:8px}
+.acts .kb{flex:1;height:56px}
+.done{border-radius:12px;background:#E3F4F1;color:#065E53;padding:10px 14px;font-size:14.5px;font-weight:700;text-align:center}
+.done.no{background:var(--soft);color:var(--muted)}
+.voice{font-size:12.5px;color:var(--muted);text-align:center}
+
+/* 시트 */
+.dim{position:absolute;inset:0;background:rgba(15,23,32,.28);z-index:24}
+.sheet{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);width:820px;padding:20px 22px;z-index:25;border-radius:20px;background:#fff;animation:up .32s cubic-bezier(.3,1.2,.6,1)}
+@keyframes up{from{transform:translate(-50%,40px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+.sheet h3{margin:0;font-size:22px;display:flex;justify-content:space-between;align-items:center}
+.sheet .s{margin:2px 0 14px;color:var(--muted);font-size:14px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.chips button{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 14px;font-size:16px;font-weight:500;display:flex;gap:6px;align-items:center}
+.chips button[aria-pressed="true"]{border-color:var(--p);background:rgba(8,127,112,.08);color:var(--p);font-weight:700}
+.chips button:disabled{opacity:.35}
+.opt{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:14px;align-items:center;border-radius:14px;border:1px solid var(--line);padding:12px 14px;margin-bottom:10px}
+.opt .ico{width:52px;height:52px;border-radius:12px;background:rgba(8,127,112,.1);display:grid;place-items:center}
+.opt .ttl{font-size:19px;font-weight:700}
+.opt .sub{font-size:13px;color:var(--muted)}
+.opt .etas{display:flex;gap:6px;margin-top:5px;flex-wrap:wrap}
+.opt .etas span{font-size:12px;background:var(--soft);border-radius:6px;padding:1px 8px 1px 4px;display:inline-flex;align-items:center;gap:5px}
+.opt .etas i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.opt.na{opacity:.5}
+.empty{color:var(--muted);font-size:15px;padding:10px 2px}
+.play{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pcard{border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.pcard .ico{width:48px;height:48px;border-radius:12px;display:grid;place-items:center}
+.pcard h5{margin:0;font-size:18px}
+.pcard p{margin:0;font-size:13.5px;color:var(--muted)}
+.pcard .kb{margin-top:auto;height:52px;justify-content:center}
+
+/* 룰렛 */
+.rl{position:absolute;inset:0;z-index:26;display:grid;place-items:center;background:rgba(15,23,32,.35)}
+.rlc{width:560px;padding:24px;border-radius:22px;background:#fff;display:flex;flex-direction:column;align-items:center;gap:14px;animation:popin .3s cubic-bezier(.3,1.3,.6,1)}
+.rlc.still{animation:none}
+.rlc h3{margin:0;font-size:22px}
+.rlc .s{margin:-8px 0 0;color:var(--muted);font-size:14px;text-align:center}
+.wheel{position:relative;width:250px;height:250px}
+.wheel svg{width:250px;height:250px;transition:transform 2.6s cubic-bezier(.15,.85,.2,1)}
+.wheel .needle{position:absolute;left:50%;top:-6px;transform:translateX(-50%);width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:20px solid #1B2430}
+.res{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+.res b{font-size:20px}
+.res span{font-size:14px;color:var(--muted)}
+.sdk{font-family:var(--num);font-size:12px;background:var(--soft);border-radius:8px;padding:6px 10px;color:#3A4652}
+.pen{position:absolute;left:50%;top:16px;transform:translateX(-50%);z-index:28;display:flex;align-items:center;gap:14px;padding:12px 14px 12px 18px;border-radius:16px;background:#1B2430;color:#fff;box-shadow:0 12px 26px -12px rgba(0,0,0,.5)}
+.pen b{font-size:17px}
+.pen small{display:block;font-size:12.5px;opacity:.8}
+.pen .kb{height:44px;font-size:14px;background:rgba(255,255,255,.14);color:#fff}
+
+/* 로비·도착 */
+.cover{position:absolute;inset:44px 0 0 0;z-index:35;display:grid;place-items:center;background:rgba(238,241,240,.72);backdrop-filter:blur(3px)}
+.lob{width:640px;padding:28px 30px;border-radius:22px;background:#fff;border:1px solid var(--line);box-shadow:0 22px 50px -26px rgba(15,23,32,.55);display:flex;flex-direction:column;gap:16px}
+.lob h2{margin:0;font-size:26px}
+.lob .s{margin:-10px 0 0;color:var(--muted);font-size:14.5px}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:12.5px;color:var(--muted);font-weight:500}
+.field .v{border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:17px;font-weight:500;display:flex;align-items:center;gap:10px}
+.code{display:flex;align-items:center;justify-content:space-between;gap:12px;border-radius:14px;background:rgba(8,127,112,.08);padding:14px 18px}
+.code b{font-family:var(--num);font-size:36px;letter-spacing:.12em;color:var(--p)}
+.mem{display:flex;flex-direction:column}
+.mem .row{display:grid;grid-template-columns:34px 1fr auto;gap:12px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+.mem .row:first-child{border-top:0}
+.ok{color:#087F70;font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:4px}
+.wt{color:var(--muted);font-size:13px}
+.recap{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.recap div{border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.recap b{display:block;font-family:var(--num);font-size:22px;font-variant-numeric:tabular-nums}
+.recap span{font-size:12px;color:var(--muted)}
+
+/* ================= 콘솔 ================= */
+.console{display:flex;flex-direction:column;gap:12px;min-width:0}
+.cb{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 16px}
+.cb h3{margin:0 0 8px;font-size:15px;font-weight:700}
+.cb .n{margin:-4px 0 10px;font-size:12.5px;color:var(--muted)}
+.hint{border-color:var(--accent);background:var(--accent-soft)}
+.hint p{margin:0;font-size:14px}
+.steps{display:flex;flex-direction:column;gap:6px}
+.stp{display:grid;grid-template-columns:26px 1fr;gap:10px;align-items:center;text-align:left;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:7px 10px;font-size:13.5px}
+.stp i{font-style:normal;width:26px;height:26px;border-radius:7px;background:var(--soft);display:grid;place-items:center;font-family:var(--num);font-size:12px;font-weight:700;color:var(--muted)}
+.stp[aria-current="step"]{border-color:var(--accent)}
+.stp[aria-current="step"] i{background:var(--accent);color:var(--accent-ink)}
+.stp:disabled{opacity:.45}
+.row2{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--line);font-size:13.5px}
+.row2:first-of-type{border-top:0}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.seg button{border:0;background:transparent;padding:5px 10px;font-size:12.5px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.sw{width:46px;height:28px;border-radius:999px;border:0;background:var(--line);position:relative;flex:none}
+.sw::after{content:"";position:absolute;top:4px;left:4px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .15s}
+.sw[aria-checked="true"]{background:var(--accent)}
+.sw[aria-checked="true"]::after{transform:translateX(18px)}
+.vlive{display:grid;grid-template-columns:1fr auto;gap:4px 10px;font-size:13px}
+.vlive span:nth-child(odd){color:var(--muted)}
+.vlive span:nth-child(even){font-family:var(--num);font-variant-numeric:tabular-nums;font-weight:600;text-align:right}
+.log{list-style:none;margin:0;padding:0;max-height:250px;overflow:auto;display:flex;flex-direction:column;gap:6px;font-size:12.5px}
+.log li{display:grid;grid-template-columns:40px 44px minmax(0,1fr);gap:6px;align-items:start}
+.log time{color:var(--muted);font-family:var(--num);font-variant-numeric:tabular-nums}
+.lt{font-size:10.5px;font-weight:700;border-radius:5px;padding:1px 0;text-align:center}
+.lt.srv{background:var(--soft);color:var(--muted)}
+.lt.sdk{background:var(--accent-soft);color:var(--accent)}
+.reset{border:1px solid var(--line);background:transparent;border-radius:12px;padding:10px;color:var(--muted);font-size:13.5px}
+@media (prefers-reduced-motion: reduce){.bub.q,.car .halo{animation:none}.wheel svg{transition:none}}
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="top">
+    <div class="brand">
+      <svg width="52" height="52" viewBox="0 0 52 52" aria-hidden="true"><rect width="52" height="52" rx="14" fill="#087F70"/><path d="M10 38 C 20 34, 26 22, 42 14" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="1 7"/><rect x="8" y="30" width="16" height="11" rx="4" fill="#FFC845"/><rect x="27" y="17" width="16" height="11" rx="4" fill="#fff"/></svg>
+      <div><h1>같이 가요</h1><p>따로 출발한 가족 차들이 한 지도 위에서 함께 움직여요. 휴게소에 들르자는 제안에 모두 좋다고 하면, 모든 차의 경로가 함께 바뀌어요.</p></div>
+    </div>
+    <div class="viewer" role="group" aria-label="보고 있는 차량 화면">
+      <span class="lbl">지금 보는 차</span>
+      <button class="vbtn" data-act="view" data-arg="A"><span class="vdot" style="background:#087F70">우</span>우리집 <small>전기차 · 서울 강남</small></button>
+      <button class="vbtn" data-act="view" data-arg="B"><span class="vdot" style="background:#E8772E">큰</span>큰집 <small>가솔린 · 서울 마포</small></button>
+      <button class="vbtn" data-act="view" data-arg="C"><span class="vdot" style="background:#5468E8">작</span>작은집 <small>하이브리드 · 수원</small></button>
+    </div>
+  </header>
+  <div class="layout">
+    <div class="stage" id="stage">
+      <div class="frame"><div class="bezel"><div class="screen" id="screen">
+        <div class="sbar" id="sbar"></div>
+        <div class="map" id="map">
+          <svg id="illu" aria-label="지도"><g id="illuG"></g></svg>
+          <div id="gl" hidden></div>
+          <div class="ov" id="ov"></div>
+          <div class="ui" id="ui"></div>
+          <div id="rlbox"></div>
+        </div>
+        <div id="cover"></div>
+      </div></div></div>
+      <p class="foot" id="foot"></p>
+    </div>
+    <aside class="console" id="console" aria-label="시연 콘솔"></aside>
+  </div>
+</div>
+
+<script>
+const ROUTES = {"A":{"distance":204456,"duration":10037,"pts":[[127.02761,37.49789],[127.04263,37.50245],[127.04757,37.49215],[127.05371,37.48105],[127.07331,37.46122],[127.07689,37.45559],[127.07779,37.4537],[127.07801,37.45103],[127.07625,37.44575],[127.07577,37.44088],[127.07608,37.43859],[127.07785,37.43554],[127.08025,37.43297],[127.08282,37.43118],[127.09704,37.42487],[127.10158,37.42229],[127.10935,37.42233],[127.12816,37.42142],[127.13098,37.42189],[127.1414,37.42578],[127.14359,37.4259],[127.14788,37.4253],[127.15183,37.42351],[127.15841,37.41676],[127.16345,37.41355],[127.16629,37.41238],[127.17477,37.41027],[127.19039,37.40331],[127.19571,37.40242],[127.20921,37.40248],[127.21388,37.40113],[127.21858,37.39829],[127.22164,37.397],[127.22991,37.39566],[127.24197,37.39249],[127.25436,37.39145],[127.26268,37.38998],[127.28695,37.38224],[127.29594,37.38032],[127.29977,37.37867],[127.30758,37.3741],[127.31521,37.372],[127.3238,37.37123],[127.32487,37.37179],[127.32653,37.37407],[127.3288,37.37461],[127.3556,37.37434],[127.36791,37.37545],[127.39439,37.38104],[127.42224,37.379],[127.45402,37.37969],[127.48894,37.3766],[127.5035,37.37675],[127.51612,37.37836],[127.51945,37.3782],[127.52634,37.37698],[127.53006,37.37689],[127.554,37.38145],[127.5692,37.38523],[127.57648,37.38535],[127.58798,37.38347],[127.59117,37.38328],[127.61259,37.38525],[127.61877,37.38697],[127.63156,37.3935],[127.6486,37.40025],[127.65187,37.40108],[127.65663,37.40148],[127.69031,37.39917],[127.69428,37.39964],[127.70118,37.40146],[127.70534,37.40172],[127.70815,37.40134],[127.72803,37.39656],[127.73208,37.39614],[127.73595,37.39652],[127.74632,37.39939],[127.76914,37.39943],[127.78219,37.40268],[127.78749,37.40305],[127.80285,37.40015],[127.81764,37.39555],[127.83022,37.39108],[127.83378,37.39032],[127.83904,37.38996],[127.84352,37.39032],[127.85904,37.3942],[127.86689,37.39471],[127.87161,37.39413],[127.87562,37.39307],[127.89031,37.38683],[127.89375,37.38582],[127.89889,37.38562],[127.90726,37.38759],[127.91257,37.38808],[127.91648,37.38785],[127.92556,37.38601],[127.93009,37.38565],[127.93168,37.38676],[127.93373,37.39277],[127.93627,37.39827],[127.93816,37.39998],[127.94004,37.40095],[127.94388,37.40164],[127.95006,37.40088],[127.95255,37.40094],[127.96249,37.40423],[127.97795,37.40459],[127.98357,37.40579],[127.98822,37.40763],[127.9907,37.40917],[127.99921,37.41607],[128.00608,37.42636],[128.01072,37.43475],[128.0121,37.43641],[128.01575,37.43813],[128.02544,37.43948],[128.02902,37.44051],[128.03292,37.44265],[128.03832,37.44713],[128.04109,37.44853],[128.04371,37.44922],[128.04684,37.44936],[128.07183,37.44596],[128.08325,37.44229],[128.09109,37.43859],[128.09383,37.43823],[128.09632,37.43859],[128.09864,37.43978],[128.10036,37.44181],[128.10089,37.44417],[128.10026,37.44709],[128.1006,37.44943],[128.10639,37.45688],[128.10743,37.45881],[128.10783,37.46055],[128.10772,37.46278],[128.10575,37.46692],[128.10553,37.46898],[128.10664,37.4711],[128.10866,37.47242],[128.11189,37.47316],[128.11552,37.47273],[128.12217,37.46988],[128.12587,37.46645],[128.12827,37.46535],[128.13612,37.46384],[128.14122,37.46431],[128.14676,37.46653],[128.15015,37.46863],[128.15268,37.47104],[128.1562,37.47576],[128.16206,37.48029],[128.16463,37.4815],[128.17001,37.48261],[128.17222,37.48349],[128.17863,37.48881],[128.18019,37.48954],[128.18294,37.49014],[128.19071,37.49019],[128.20204,37.4916],[128.21117,37.4947],[128.22042,37.49532],[128.22933,37.49846],[128.23264,37.50007],[128.23475,37.5016],[128.238,37.50525],[128.24299,37.50848],[128.24705,37.51365],[128.2528,37.51754],[128.25614,37.51914],[128.26333,37.52132],[128.27434,37.5223],[128.28179,37.52544],[128.3193,37.5526],[128.32332,37.55508],[128.32702,37.55622],[128.33952,37.55852],[128.34715,37.56153],[128.35074,37.56226],[128.36117,37.56182],[128.37309,37.56028],[128.37561,37.56045],[128.37861,37.56125],[128.38191,37.56326],[128.39723,37.57631],[128.40929,37.58425],[128.41095,37.58599],[128.41287,37.58926],[128.41436,37.59085],[128.42076,37.59438],[128.42282,37.59702],[128.42478,37.60315],[128.42727,37.60558],[128.43169,37.60823],[128.43459,37.60883],[128.4419,37.60733],[128.45478,37.60612],[128.45805,37.60629],[128.46086,37.60716],[128.46298,37.60844],[128.46467,37.61022],[128.46572,37.61225],[128.4671,37.61676],[128.47193,37.62287],[128.48018,37.62793],[128.48625,37.62907],[128.48956,37.63038],[128.4923,37.63244],[128.49881,37.63929],[128.50233,37.64123],[128.54953,37.64748],[128.55435,37.64843],[128.5673,37.65409],[128.5819,37.65828],[128.58964,37.66298],[128.60099,37.66703],[128.61689,37.6706],[128.63159,37.67222],[128.6385,37.67495],[128.64877,37.67744],[128.65167,37.67884],[128.65957,37.68417],[128.66198,37.68518],[128.66501,37.68578],[128.66799,37.68578],[128.67131,37.68506],[128.67477,37.68332],[128.67944,37.67982],[128.68417,37.67836],[128.68792,37.67827],[128.70581,37.67932],[128.70991,37.67899],[128.71355,37.67815],[128.71865,37.67596],[128.73473,37.66605],[128.73837,37.66459],[128.74214,37.66363],[128.74996,37.66307],[128.75851,37.66429],[128.76579,37.66391],[128.76949,37.66463],[128.77159,37.6657],[128.77322,37.66713],[128.77438,37.66892],[128.77488,37.67083],[128.7742,37.68712],[128.77301,37.69103],[128.7697,37.69626],[128.76916,37.69891],[128.77017,37.70245],[128.77379,37.70628],[128.77509,37.70897],[128.77517,37.71133],[128.77372,37.71593],[128.77393,37.71834],[128.77519,37.72059],[128.78015,37.72595],[128.7814,37.72819],[128.78166,37.73095],[128.78056,37.73555],[128.78148,37.73882],[128.78341,37.74098],[128.78727,37.74327],[128.78964,37.7452],[128.79113,37.74722],[128.79319,37.75139],[128.79567,37.75417],[128.79852,37.756],[128.80515,37.75812],[128.80835,37.75997],[128.81026,37.76185],[128.81491,37.76845],[128.81712,37.77029],[128.82049,37.77164],[128.8246,37.77197],[128.83096,37.7715],[128.83331,37.77052],[128.83488,37.76922],[128.83581,37.7677],[128.83718,37.76359],[128.83882,37.75677],[128.83897,37.75245],[128.83753,37.75059],[128.83762,37.74987],[128.83885,37.74935],[128.84474,37.7487],[128.84597,37.74823],[128.85388,37.73838],[128.85486,37.73764],[128.85593,37.73748],[128.85688,37.73797],[128.85682,37.74031],[128.85736,37.74177],[128.85872,37.74407],[128.86041,37.7453],[128.86325,37.74589],[128.86737,37.7456],[128.87717,37.74694],[128.87769,37.74772],[128.87843,37.75131],[128.87984,37.75301],[128.8785,37.75194],[128.87632,37.75189]],"steps":[{"t":"depart","m":null,"n":"서초대로","d":12,"at":[127.02761,37.49789]},{"t":"new name","m":"straight","n":"테헤란로","d":1410,"at":[127.02773,37.49792]},{"t":"turn","m":"right","n":"언주로","d":3031,"at":[127.04263,37.50245]},{"t":"fork","m":"slight left","n":"개포지하도로","d":517,"at":[127.05687,37.47776]},{"t":"new name","m":"straight","n":"분당내곡로","d":6928,"at":[127.06052,37.47412]},{"t":"off ramp","m":"slight right","n":"","d":442,"at":[127.09704,37.42487]},{"t":"fork","m":"slight left","n":"","d":91,"at":[127.10111,37.42258]},{"t":"new name","m":"straight","n":"여수대로","d":2064,"at":[127.10201,37.42225]},{"t":"continue","m":"straight","n":"여수대로","d":254,"at":[127.12529,37.42153]},{"t":"new name","m":"straight","n":"여수지하차도","d":388,"at":[127.12816,37.42142]},{"t":"new name","m":"straight","n":"성남이천로","d":18271,"at":[127.13233,37.42239]},{"t":"off ramp","m":"slight right","n":"","d":964,"at":[127.32001,37.37163]},{"t":"new name","m":"straight","n":"광주원주고속도로","d":55783,"at":[127.3288,37.37461]},{"t":"merge","m":"slight left","n":"영동고속도로","d":105120,"at":[127.93373,37.39277]},{"t":"fork","m":"slight right","n":"","d":1659,"at":[128.8246,37.77197]},{"t":"merge","m":"slight left","n":"동해고속도로","d":1098,"at":[128.83718,37.76359]},{"t":"off ramp","m":"slight right","n":"","d":1567,"at":[128.83905,37.75383]},{"t":"fork","m":"slight left","n":"","d":824,"at":[128.84787,37.74588]},{"t":"fork","m":"slight left","n":"","d":916,"at":[128.85288,37.73961]},{"t":"merge","m":"slight left","n":"경강로","d":1746,"at":[128.85736,37.74177]},{"t":"off ramp","m":"slight right","n":"","d":177,"at":[128.87444,37.7466]},{"t":"new name","m":"straight","n":"홍제육교","d":392,"at":[128.87644,37.74672]},{"t":"turn","m":"straight","n":"강릉대로","d":409,"at":[128.87798,37.74971]},{"t":"continue","m":"uturn","n":"강릉대로","d":129,"at":[128.87984,37.75301]},{"t":"turn","m":"slight right","n":"","d":263,"at":[128.87893,37.75226]},{"t":"arrive","m":"right","n":"","d":0,"at":[128.87632,37.75189]}]},"B":{"distance":220048,"duration":10925,"pts":[[126.9137,37.5495],[126.91058,37.54859],[126.90786,37.54855],[126.90722,37.54811],[126.90724,37.54708],[126.91022,37.54412],[126.91212,37.54322],[126.9175,37.54232],[126.91949,37.54252],[126.92348,37.54388],[126.92565,37.54401],[126.93321,37.54136],[126.93765,37.54074],[126.93911,37.53968],[126.94299,37.53463],[126.94742,37.5331],[126.95059,37.53047],[126.95261,37.52837],[126.95382,37.52508],[126.95731,37.52258],[126.96098,37.52181],[126.97353,37.51703],[126.97787,37.51615],[126.98351,37.516],[126.98889,37.51663],[126.9928,37.51881],[126.99421,37.519],[127.00085,37.50547],[127.00347,37.502],[127.00439,37.49853],[127.01297,37.48054],[127.0191,37.48237],[127.02372,37.48305],[127.02602,37.48217],[127.02871,37.47592],[127.03015,37.47369],[127.05456,37.44758],[127.0613,37.43876],[127.08958,37.41062],[127.09128,37.40854],[127.09746,37.40885],[127.09944,37.41069],[127.1023,37.41829],[127.10203,37.42189],[127.10246,37.42221],[127.10935,37.42233],[127.12816,37.42142],[127.13098,37.42189],[127.1414,37.42578],[127.14359,37.4259],[127.14733,37.4254],[127.15021,37.42451],[127.15183,37.42351],[127.15841,37.41676],[127.16345,37.41355],[127.16629,37.41238],[127.17477,37.41027],[127.19039,37.40331],[127.19571,37.40242],[127.20921,37.40248],[127.21388,37.40113],[127.21858,37.39829],[127.22164,37.397],[127.22991,37.39566],[127.24197,37.39249],[127.25436,37.39145],[127.26268,37.38998],[127.28695,37.38224],[127.29594,37.38032],[127.29977,37.37867],[127.30758,37.3741],[127.31521,37.372],[127.3238,37.37123],[127.32487,37.37179],[127.32653,37.37407],[127.3288,37.37461],[127.3556,37.37434],[127.36791,37.37545],[127.39439,37.38104],[127.42224,37.379],[127.45402,37.37969],[127.48894,37.3766],[127.5035,37.37675],[127.51612,37.37836],[127.51945,37.3782],[127.52634,37.37698],[127.53006,37.37689],[127.554,37.38145],[127.5692,37.38523],[127.57648,37.38535],[127.58798,37.38347],[127.59117,37.38328],[127.61259,37.38525],[127.61877,37.38697],[127.63156,37.3935],[127.6486,37.40025],[127.65187,37.40108],[127.65663,37.40148],[127.69031,37.39917],[127.69428,37.39964],[127.70118,37.40146],[127.70534,37.40172],[127.70815,37.40134],[127.72803,37.39656],[127.73208,37.39614],[127.73595,37.39652],[127.74632,37.39939],[127.76914,37.39943],[127.78219,37.40268],[127.78749,37.40305],[127.80285,37.40015],[127.81764,37.39555],[127.83022,37.39108],[127.83378,37.39032],[127.83904,37.38996],[127.84352,37.39032],[127.85904,37.3942],[127.86689,37.39471],[127.87161,37.39413],[127.87562,37.39307],[127.89031,37.38683],[127.89375,37.38582],[127.89889,37.38562],[127.90726,37.38759],[127.91257,37.38808],[127.91708,37.38777],[127.92556,37.38601],[127.92983,37.38562],[127.93091,37.38594],[127.93168,37.38676],[127.93373,37.39277],[127.93627,37.39827],[127.93816,37.39998],[127.94004,37.40095],[127.94388,37.40164],[127.95006,37.40088],[127.95255,37.40094],[127.96249,37.40423],[127.97795,37.40459],[127.98357,37.40579],[127.98822,37.40763],[127.9907,37.40917],[127.99921,37.41607],[128.00608,37.42636],[128.01072,37.43475],[128.0121,37.43641],[128.01575,37.43813],[128.02544,37.43948],[128.02902,37.44051],[128.03292,37.44265],[128.03832,37.44713],[128.04109,37.44853],[128.04371,37.44922],[128.04684,37.44936],[128.07183,37.44596],[128.08325,37.44229],[128.09109,37.43859],[128.09383,37.43823],[128.09632,37.43859],[128.09864,37.43978],[128.10036,37.44181],[128.10089,37.44417],[128.10026,37.44709],[128.1006,37.44943],[128.10639,37.45688],[128.10743,37.45881],[128.10783,37.46055],[128.10772,37.46278],[128.10575,37.46692],[128.10553,37.46898],[128.10664,37.4711],[128.10866,37.47242],[128.11189,37.47316],[128.11552,37.47273],[128.12217,37.46988],[128.12587,37.46645],[128.12827,37.46535],[128.13612,37.46384],[128.14122,37.46431],[128.14676,37.46653],[128.15015,37.46863],[128.15268,37.47104],[128.1562,37.47576],[128.16206,37.48029],[128.16463,37.4815],[128.17001,37.48261],[128.17222,37.48349],[128.17863,37.48881],[128.18019,37.48954],[128.18294,37.49014],[128.19071,37.49019],[128.20204,37.4916],[128.21117,37.4947],[128.22042,37.49532],[128.22933,37.49846],[128.23264,37.50007],[128.23475,37.5016],[128.238,37.50525],[128.24299,37.50848],[128.24705,37.51365],[128.2528,37.51754],[128.25614,37.51914],[128.26333,37.52132],[128.27434,37.5223],[128.28179,37.52544],[128.3193,37.5526],[128.32332,37.55508],[128.32702,37.55622],[128.33952,37.55852],[128.34715,37.56153],[128.35074,37.56226],[128.36117,37.56182],[128.37309,37.56028],[128.37561,37.56045],[128.37861,37.56125],[128.38191,37.56326],[128.39723,37.57631],[128.40929,37.58425],[128.41095,37.58599],[128.41287,37.58926],[128.41436,37.59085],[128.42076,37.59438],[128.42282,37.59702],[128.42478,37.60315],[128.42727,37.60558],[128.43169,37.60823],[128.43459,37.60883],[128.4419,37.60733],[128.45478,37.60612],[128.45805,37.60629],[128.46086,37.60716],[128.46298,37.60844],[128.46467,37.61022],[128.46572,37.61225],[128.4671,37.61676],[128.47193,37.62287],[128.48018,37.62793],[128.48625,37.62907],[128.48956,37.63038],[128.4923,37.63244],[128.49881,37.63929],[128.50233,37.64123],[128.54953,37.64748],[128.55435,37.64843],[128.5673,37.65409],[128.5819,37.65828],[128.58964,37.66298],[128.60099,37.66703],[128.61689,37.6706],[128.63159,37.67222],[128.6385,37.67495],[128.64877,37.67744],[128.65167,37.67884],[128.65957,37.68417],[128.66198,37.68518],[128.66501,37.68578],[128.66799,37.68578],[128.67131,37.68506],[128.67477,37.68332],[128.67944,37.67982],[128.68417,37.67836],[128.68792,37.67827],[128.70581,37.67932],[128.70991,37.67899],[128.71355,37.67815],[128.71865,37.67596],[128.73473,37.66605],[128.73837,37.66459],[128.74214,37.66363],[128.74996,37.66307],[128.75851,37.66429],[128.76579,37.66391],[128.76949,37.66463],[128.77159,37.6657],[128.77322,37.66713],[128.77438,37.66892],[128.77488,37.67083],[128.7742,37.68712],[128.77301,37.69103],[128.7697,37.69626],[128.76916,37.69891],[128.77017,37.70245],[128.77379,37.70628],[128.77509,37.70897],[128.77517,37.71133],[128.77372,37.71593],[128.77393,37.71834],[128.77519,37.72059],[128.78015,37.72595],[128.7814,37.72819],[128.78166,37.73095],[128.78056,37.73555],[128.78148,37.73882],[128.78341,37.74098],[128.78727,37.74327],[128.78964,37.7452],[128.79113,37.74722],[128.79319,37.75139],[128.79567,37.75417],[128.79852,37.756],[128.80515,37.75812],[128.80835,37.75997],[128.81026,37.76185],[128.81491,37.76845],[128.81712,37.77029],[128.82049,37.77164],[128.8246,37.77197],[128.83096,37.7715],[128.83331,37.77052],[128.83488,37.76922],[128.83581,37.7677],[128.83718,37.76359],[128.83882,37.75677],[128.83897,37.75245],[128.83753,37.75059],[128.83762,37.74987],[128.83885,37.74935],[128.84474,37.7487],[128.84597,37.74823],[128.85388,37.73838],[128.85486,37.73764],[128.85593,37.73748],[128.85688,37.73797],[128.85682,37.74031],[128.85736,37.74177],[128.85872,37.74407],[128.86041,37.7453],[128.86325,37.74589],[128.86737,37.7456],[128.87717,37.74694],[128.87769,37.74772],[128.87843,37.75131],[128.87984,37.75301],[128.8785,37.75194],[128.87632,37.75189]],"steps":[{"t":"depart","m":null,"n":"양화로","d":243,"at":[126.9137,37.5495]},{"t":"on ramp","m":"straight","n":"","d":265,"at":[126.91123,37.5487]},{"t":"fork","m":"slight left","n":"","d":231,"at":[126.90826,37.54859]},{"t":"merge","m":"slight right","n":"강변북로","d":8131,"at":[126.90724,37.54708]},{"t":"fork","m":"slight right","n":"강변북로","d":660,"at":[126.98248,37.51604]},{"t":"off ramp","m":"slight left","n":"","d":541,"at":[126.98982,37.5169]},{"t":"turn","m":"straight","n":"녹사평대로","d":374,"at":[126.99454,37.51848]},{"t":"new name","m":"straight","n":"반포대로","d":912,"at":[126.99605,37.51533]},{"t":"fork","m":"slight left","n":"31","d":583,"at":[126.99973,37.50766]},{"t":"turn","m":"straight","n":"반포대로","d":2387,"at":[127.00271,37.50301]},{"t":"fork","m":"slight right","n":"반포대로","d":261,"at":[127.01196,37.48287]},{"t":"turn","m":"left","n":"남부순환로","d":1008,"at":[127.01292,37.48065]},{"t":"on ramp","m":"slight right","n":"","d":399,"at":[127.02372,37.48305]},{"t":"merge","m":"slight left","n":"경부고속도로","d":9608,"at":[127.02683,37.48079]},{"t":"off ramp","m":"slight right","n":"","d":537,"at":[127.08958,37.41062]},{"t":"fork","m":"slight left","n":"","d":82,"at":[127.09413,37.40877]},{"t":"turn","m":"slight left","n":"달래내로","d":501,"at":[127.09498,37.40856]},{"t":"end of road","m":"left","n":"대왕판교로","d":1286,"at":[127.09944,37.41069]},{"t":"turn","m":"right","n":"여수대로","d":2078,"at":[127.10203,37.42189]},{"t":"continue","m":"straight","n":"여수대로","d":254,"at":[127.12529,37.42153]},{"t":"new name","m":"straight","n":"여수지하차도","d":388,"at":[127.12816,37.42142]},{"t":"new name","m":"straight","n":"성남이천로","d":18271,"at":[127.13233,37.42239]},{"t":"off ramp","m":"slight right","n":"","d":964,"at":[127.32001,37.37163]},{"t":"new name","m":"straight","n":"광주원주고속도로","d":55783,"at":[127.3288,37.37461]},{"t":"merge","m":"slight left","n":"영동고속도로","d":105120,"at":[127.93373,37.39277]},{"t":"fork","m":"slight right","n":"","d":1659,"at":[128.8246,37.77197]},{"t":"merge","m":"slight left","n":"동해고속도로","d":1098,"at":[128.83718,37.76359]},{"t":"off ramp","m":"slight right","n":"","d":1567,"at":[128.83905,37.75383]},{"t":"fork","m":"slight left","n":"","d":824,"at":[128.84787,37.74588]},{"t":"fork","m":"slight left","n":"","d":916,"at":[128.85288,37.73961]},{"t":"merge","m":"slight left","n":"경강로","d":1746,"at":[128.85736,37.74177]},{"t":"off ramp","m":"slight right","n":"","d":177,"at":[128.87444,37.7466]},{"t":"new name","m":"straight","n":"홍제육교","d":392,"at":[128.87644,37.74672]},{"t":"turn","m":"straight","n":"강릉대로","d":409,"at":[128.87798,37.74971]},{"t":"continue","m":"uturn","n":"강릉대로","d":129,"at":[128.87984,37.75301]},{"t":"turn","m":"slight right","n":"","d":263,"at":[128.87893,37.75226]},{"t":"arrive","m":"right","n":"","d":0,"at":[128.87632,37.75189]}]},"C":{"distance":211758,"duration":10155,"pts":[[127.02825,37.26351],[127.02782,37.26303],[127.02828,37.26272],[127.02534,37.26338],[127.03061,37.2769],[127.03097,37.27893],[127.02596,37.28863],[127.02509,37.28956],[127.02544,37.29017],[127.02658,37.29133],[127.03335,37.29264],[127.03589,37.29435],[127.03728,37.29602],[127.03826,37.29655],[127.04091,37.29678],[127.04318,37.29541],[127.04555,37.29685],[127.05128,37.29866],[127.05814,37.29701],[127.07953,37.29317],[127.09112,37.29023],[127.09481,37.28972],[127.10506,37.29005],[127.11595,37.2915],[127.13708,37.28858],[127.14892,37.28933],[127.15328,37.28886],[127.16388,37.28595],[127.16855,37.28376],[127.17115,37.28174],[127.18175,37.27178],[127.20021,37.26065],[127.22951,37.24887],[127.24886,37.24548],[127.25288,37.24539],[127.26545,37.2464],[127.27039,37.24607],[127.27425,37.24484],[127.28308,37.24045],[127.28949,37.23893],[127.29214,37.23894],[127.29509,37.23951],[127.3031,37.24347],[127.31107,37.24459],[127.31713,37.24735],[127.32361,37.2486],[127.33188,37.2512],[127.33735,37.25185],[127.34806,37.25183],[127.3504,37.25157],[127.35331,37.25036],[127.35985,37.24364],[127.36218,37.24227],[127.3655,37.24125],[127.40005,37.23962],[127.41151,37.24067],[127.4153,37.24068],[127.41845,37.23994],[127.42804,37.23549],[127.43258,37.23454],[127.43858,37.23488],[127.46417,37.24154],[127.47486,37.2452],[127.48219,37.246],[127.51886,37.24362],[127.52294,37.24254],[127.52913,37.23972],[127.53243,37.23899],[127.55771,37.2404],[127.56104,37.2403],[127.57544,37.2381],[127.58645,37.23283],[127.58993,37.23202],[127.59357,37.23185],[127.59947,37.23309],[127.61223,37.23833],[127.63354,37.24925],[127.65765,37.25347],[127.67707,37.25473],[127.69286,37.2545],[127.69802,37.25406],[127.70314,37.25293],[127.71288,37.24986],[127.71781,37.24716],[127.72022,37.24636],[127.75258,37.242],[127.75656,37.24215],[127.75904,37.24303],[127.76094,37.24448],[127.76463,37.25234],[127.76727,37.25537],[127.77699,37.26168],[127.78677,37.26496],[127.78806,37.26588],[127.79164,37.26994],[127.79344,37.27127],[127.80068,37.27457],[127.80705,37.27657],[127.81338,37.2822],[127.81584,37.28515],[127.8167,37.29338],[127.82095,37.3047],[127.82265,37.30805],[127.82531,37.31072],[127.83628,37.31993],[127.84861,37.32583],[127.85767,37.33599],[127.86324,37.34163],[127.8663,37.34358],[127.87279,37.34659],[127.88314,37.34941],[127.88578,37.35048],[127.89156,37.35536],[127.89617,37.35815],[127.8998,37.36309],[127.90256,37.36505],[127.91103,37.3677],[127.91889,37.36892],[127.9211,37.36971],[127.92332,37.3711],[127.92557,37.37384],[127.93563,37.39719],[127.93756,37.39953],[127.94004,37.40095],[127.94292,37.40161],[127.95058,37.40084],[127.95303,37.40103],[127.96296,37.40431],[127.97572,37.40442],[127.97962,37.40484],[127.98417,37.40598],[127.98822,37.40763],[127.9907,37.40917],[127.99921,37.41607],[128.00608,37.42636],[128.0111,37.43532],[128.01386,37.43751],[128.01641,37.43826],[128.02544,37.43948],[128.02902,37.44051],[128.03292,37.44265],[128.03945,37.4478],[128.0426,37.44902],[128.04614,37.44939],[128.07183,37.44596],[128.08325,37.44229],[128.09109,37.43859],[128.09383,37.43823],[128.09678,37.43875],[128.09909,37.44016],[128.10036,37.44181],[128.10089,37.44417],[128.10026,37.44709],[128.1006,37.44943],[128.10639,37.45688],[128.10743,37.45881],[128.10783,37.46055],[128.10772,37.46278],[128.10575,37.46692],[128.10548,37.46849],[128.10604,37.47034],[128.10807,37.47213],[128.11128,37.47312],[128.11468,37.47293],[128.12217,37.46988],[128.12525,37.46692],[128.12748,37.46557],[128.13561,37.46388],[128.13864,37.46386],[128.14122,37.46431],[128.14676,37.46653],[128.15015,37.46863],[128.15268,37.47104],[128.1562,37.47576],[128.16206,37.48029],[128.16463,37.4815],[128.17001,37.48261],[128.17222,37.48349],[128.17863,37.48881],[128.18019,37.48954],[128.18294,37.49014],[128.19071,37.49019],[128.20204,37.4916],[128.21117,37.4947],[128.22042,37.49532],[128.22933,37.49846],[128.23264,37.50007],[128.23475,37.5016],[128.238,37.50525],[128.24299,37.50848],[128.24705,37.51365],[128.2528,37.51754],[128.25614,37.51914],[128.26333,37.52132],[128.27434,37.5223],[128.28179,37.52544],[128.3193,37.5526],[128.32332,37.55508],[128.32702,37.55622],[128.33952,37.55852],[128.34715,37.56153],[128.35074,37.56226],[128.36117,37.56182],[128.37309,37.56028],[128.37561,37.56045],[128.37861,37.56125],[128.38191,37.56326],[128.39723,37.57631],[128.40929,37.58425],[128.41095,37.58599],[128.41287,37.58926],[128.41436,37.59085],[128.42076,37.59438],[128.42282,37.59702],[128.42478,37.60315],[128.42727,37.60558],[128.43169,37.60823],[128.43459,37.60883],[128.4419,37.60733],[128.45478,37.60612],[128.45805,37.60629],[128.46086,37.60716],[128.46298,37.60844],[128.46467,37.61022],[128.46572,37.61225],[128.4671,37.61676],[128.47193,37.62287],[128.48018,37.62793],[128.48625,37.62907],[128.48956,37.63038],[128.4923,37.63244],[128.49881,37.63929],[128.50069,37.64054],[128.50293,37.64142],[128.54953,37.64748],[128.55435,37.64843],[128.5673,37.65409],[128.5819,37.65828],[128.58964,37.66298],[128.60099,37.66703],[128.61689,37.6706],[128.63159,37.67222],[128.6385,37.67495],[128.64877,37.67744],[128.65167,37.67884],[128.65957,37.68417],[128.66198,37.68518],[128.66501,37.68578],[128.66799,37.68578],[128.67131,37.68506],[128.67477,37.68332],[128.67944,37.67982],[128.68417,37.67836],[128.68792,37.67827],[128.70581,37.67932],[128.70991,37.67899],[128.71355,37.67815],[128.71865,37.67596],[128.73473,37.66605],[128.73837,37.66459],[128.74214,37.66363],[128.74996,37.66307],[128.75851,37.66429],[128.76579,37.66391],[128.76949,37.66463],[128.77159,37.6657],[128.77322,37.66713],[128.77438,37.66892],[128.77488,37.67083],[128.7742,37.68712],[128.77301,37.69103],[128.7697,37.69626],[128.76916,37.69891],[128.77017,37.70245],[128.77379,37.70628],[128.77509,37.70897],[128.77517,37.71133],[128.77372,37.71593],[128.77393,37.71834],[128.77519,37.72059],[128.78015,37.72595],[128.7814,37.72819],[128.78166,37.73095],[128.78056,37.73555],[128.78148,37.73882],[128.78341,37.74098],[128.78727,37.74327],[128.78964,37.7452],[128.79113,37.74722],[128.79319,37.75139],[128.79567,37.75417],[128.79852,37.756],[128.80515,37.75812],[128.80835,37.75997],[128.81026,37.76185],[128.81491,37.76845],[128.81712,37.77029],[128.82049,37.77164],[128.8246,37.77197],[128.83096,37.7715],[128.83331,37.77052],[128.83488,37.76922],[128.83581,37.7677],[128.83718,37.76359],[128.83882,37.75677],[128.83897,37.75245],[128.83753,37.75059],[128.83762,37.74987],[128.83885,37.74935],[128.84474,37.7487],[128.84597,37.74823],[128.85388,37.73838],[128.85486,37.73764],[128.85593,37.73748],[128.85688,37.73797],[128.85682,37.74031],[128.85736,37.74177],[128.85872,37.74407],[128.86041,37.7453],[128.86325,37.74589],[128.86737,37.7456],[128.87717,37.74694],[128.87769,37.74772],[128.87843,37.75131],[128.87984,37.75301],[128.8785,37.75194],[128.87632,37.75189]],"steps":[{"t":"depart","m":"right","n":"","d":131,"at":[127.02825,37.26351]},{"t":"turn","m":"uturn","n":"효원로","d":292,"at":[127.02835,37.2629]},{"t":"turn","m":"right","n":"경수대로","d":948,"at":[127.02534,37.26338]},{"t":"fork","m":"slight left","n":"경수대로","d":1832,"at":[127.02852,37.27152]},{"t":"turn","m":"slight right","n":"43","d":244,"at":[127.02676,37.28705]},{"t":"turn","m":"straight","n":"","d":75,"at":[127.02567,37.28906]},{"t":"turn","m":"right","n":"창룡대로","d":1795,"at":[127.02509,37.28956]},{"t":"on ramp","m":"slight right","n":"","d":836,"at":[127.0416,37.29661]},{"t":"fork","m":"slight right","n":"","d":554,"at":[127.04924,37.2982]},{"t":"merge","m":"slight left","n":"영동고속도로","d":9670,"at":[127.05517,37.29766]},{"t":"fork","m":"slight left","n":"영동고속도로","d":186201,"at":[127.16179,37.28652]},{"t":"fork","m":"slight right","n":"","d":1659,"at":[128.8246,37.77197]},{"t":"merge","m":"slight left","n":"동해고속도로","d":1098,"at":[128.83718,37.76359]},{"t":"off ramp","m":"slight right","n":"","d":1567,"at":[128.83905,37.75383]},{"t":"fork","m":"slight left","n":"","d":824,"at":[128.84787,37.74588]},{"t":"fork","m":"slight left","n":"","d":916,"at":[128.85288,37.73961]},{"t":"merge","m":"slight left","n":"경강로","d":1746,"at":[128.85736,37.74177]},{"t":"off ramp","m":"slight right","n":"","d":177,"at":[128.87444,37.7466]},{"t":"new name","m":"straight","n":"홍제육교","d":392,"at":[128.87644,37.74672]},{"t":"turn","m":"straight","n":"강릉대로","d":409,"at":[128.87798,37.74971]},{"t":"continue","m":"uturn","n":"강릉대로","d":129,"at":[128.87984,37.75301]},{"t":"turn","m":"slight right","n":"","d":263,"at":[128.87893,37.75226]},{"t":"arrive","m":"right","n":"","d":0,"at":[128.87632,37.75189]}]}};
+</script>
+<script>
+(function(){
+/* ======================= 데이터 ======================= */
+const IDS=['A','B','C'];
+const CAR={
+  A:{alias:'우리집',short:'우',color:'#087F70',kind:'ev',kindLabel:'전기차'},
+  B:{alias:'큰집',short:'큰',color:'#E8772E',kind:'gas',kindLabel:'가솔린'},
+  C:{alias:'작은집',short:'작',color:'#5468E8',kind:'hybrid',kindLabel:'하이브리드'}
+};
+const GROUP='추석 강릉 가는 길', DEST='강릉 할머니댁', CODE='482 913';
+const RA={
+  hs:{name:'횡성휴게소',at:[128.13462,37.46486],fac:{toilet:1,rest:1,snack:1,charge:1,fuel:1},note:'호두과자 · 급속충전 4기'},
+  pc:{name:'평창휴게소',at:[128.45356,37.60569],fac:{toilet:1,rest:1,snack:1,charge:1,fuel:1},note:'감자떡 · 급속충전 6기'}
+};
+const RA_ORDER=['hs','pc'];
+const REASON={
+  toilet:{label:'화장실',stay:10,msg:r=>`화장실이 급해요. ${r} 잠깐 들를까요?`},
+  rest:{label:'쉬어 가기',stay:15,msg:r=>`조금 쉬었다 갈까요? ${r} 어때요?`},
+  snack:{label:'간식',stay:15,msg:r=>`${r}에서 간식 먹고 갈래요?`},
+  charge:{label:'충전',stay:25,msg:(r,c)=>`배터리가 ${c.battery}%예요. ${r}에서 충전하고 가도 될까요?`},
+  fuel:{label:'주유',stay:10,msg:r=>`기름을 넣어야 해요. ${r} 들를까요?`}
+};
+const CITIES=[
+  ['서울',126.978,37.5665,1],['수원',127.0286,37.2636,1],['성남',127.137,37.42,0],['용인',127.1775,37.241,0],['이천',127.435,37.272,0],
+  ['여주',127.6375,37.2983,0],['양평',127.4875,37.4917,0],['원주',127.9202,37.3422,1],['횡성',127.985,37.4917,0],['홍천',127.888,37.697,0],
+  ['평창',128.3903,37.3708,0],['진부',128.56,37.64,0],['대관령',128.72,37.68,0],['강릉',128.8761,37.7519,1],['제천',128.1909,37.1326,0]
+];
+const SIM0=9*3600+20*60;   // 09:20 출발
+const RATE=30;             // 1배속 = 30배 빠른 시뮬레이션
+const SPEEDS=[[0,'멈춤'],[1,'1배'],[4,'4배'],[12,'12배']];
+const STYLE_URL='https://tiles.openfreemap.org/styles/positron';
+
+/* ======================= 경로 계산 ======================= */
+const R2D=Math.PI/180;
+function mlen(a,b){const k=Math.cos((a[1]+b[1])/2*R2D);return Math.hypot((b[0]-a[0])*111320*k,(b[1]-a[1])*110540);}
+function mkRoute(r){
+  const pts=r.pts, cum=[0];
+  for(let i=1;i<pts.length;i++)cum.push(cum[i-1]+mlen(pts[i-1],pts[i]));
+  const k=r.distance/cum[cum.length-1];
+  for(let i=0;i<cum.length;i++)cum[i]*=k;
+  const route={pts,cum,len:r.distance,dur:r.duration,v:r.distance/r.duration};
+  route.steps=r.steps.map(s=>({...s,s:projectS(route,s.at)}));
+  return route;
+}
+function at(r,s){
+  s=Math.max(0,Math.min(r.len,s));let lo=1,hi=r.cum.length-1;
+  while(lo<hi){const m=(lo+hi)>>1;if(r.cum[m]<s)lo=m+1;else hi=m;}
+  const i=lo,a=r.pts[i-1],b=r.pts[i],seg=(r.cum[i]-r.cum[i-1])||1,t=(s-r.cum[i-1])/seg;
+  return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t];
+}
+function projectS(r,p){
+  let best=Infinity,bs=0;const k=Math.cos(p[1]*R2D);
+  for(let i=1;i<r.pts.length;i++){
+    const a=r.pts[i-1],b=r.pts[i];const ax=(a[0]-p[0])*k,ay=a[1]-p[1],bx=(b[0]-p[0])*k,by=b[1]-p[1];
+    const dx=bx-ax,dy=by-ay,L=dx*dx+dy*dy||1e-18;let t=-(ax*dx+ay*dy)/L;t=Math.max(0,Math.min(1,t));
+    const x=ax+dx*t,y=ay+dy*t,d=x*x+y*y;if(d<best){best=d;bs=(r.cum[i-1]||0)+((r.cum[i]-r.cum[i-1])*t);}
+  }
+  return bs;
+}
+function slice(r,s0,s1){
+  const out=[at(r,s0)];for(let i=0;i<r.pts.length;i++){if(r.cum[i]>s0&&r.cum[i]<s1)out.push(r.pts[i]);}out.push(at(r,s1));return out;
+}
+const RT={};IDS.forEach(id=>RT[id]=mkRoute(ROUTES[id]));
+const SSTOP={};IDS.forEach(id=>{SSTOP[id]={};RA_ORDER.forEach(k=>SSTOP[id][k]=projectS(RT[id],RA[k].at));});
+// 합류 지점: A 경로 위에서 C 경로와 처음 만나는 곳
+const MERGE=(function(){const c=RT.C;for(let i=0;i<RT.A.pts.length;i++){const p=RT.A.pts[i];const s=projectS(c,p);if(mlen(at(c,s),p)<60)return p;}return RT.A.pts[100];})();
+const SMERGE={};IDS.forEach(id=>SMERGE[id]=projectS(RT[id],MERGE));
+
+/* ======================= 상태 ======================= */
+let S;
+function fresh(){
+  const cars={};
+  IDS.forEach(id=>cars[id]={id,s:0,state:'ready',at:null,rest:0,online:true,
+    battery:id==='A'?41:null,fuel:id==='B'?58:id==='C'?63:null,drain:0,kmh:0,ang:0});
+  return {phase:'lobby',lobby:{step:'create',joined:{A:true,B:false,C:false},t:0},view:'A',sim:0,speed:1,auto:true,cars,
+    plan:{v:1,stops:[],stay:{}},prop:null,reacts:[],log:[],uid:1,
+    ui:{sheet:null,ask:false,reason:'toilet',reasonSet:false,seen:{},toast:null,fit:false,zoom:11.4,nudgeOff:null,lastDiff:null},
+    music:null,musicAsk:null,roul:null,pen:null,stats:{stops:0,songs:0,roul:0,startSim:null},step:1,ended:false};
+}
+const C=id=>S.cars[id], col=id=>CAR[id].color, nm=id=>CAR[id].alias;
+const iga=id=>{const w=nm(id),ch=w.charCodeAt(w.length-1);return w+((ch>=0xAC00&&ch<=0xD7A3&&(ch-0xAC00)%28===0)?'가':'이');};
+const pad=n=>String(n).padStart(2,'0');
+const clock=extra=>{let t=SIM0+S.sim+(extra||0);t=((Math.round(t)%86400)+86400)%86400;return pad(Math.floor(t/3600))+':'+pad(Math.floor(t%3600/60));};
+const km=m=>m<1000?Math.max(10,Math.round(m/10)*10)+' m':(m/1000).toFixed(m<10000?1:0)+' km';
+const durs=sec=>{const m=Math.max(0,Math.round(sec/60));return m<60?m+'분':Math.floor(m/60)+'시간 '+(m%60)+'분';};
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function log(kind,m){S.log.unshift({t:clock(),kind,m});if(S.log.length>90)S.log.pop();}
+
+/* ======================= 아이콘 ======================= */
+const I={
+  cup:(c='#087F70',s=20)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M17 11h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M8 3v3M12 3v3"/></svg>`,
+  bolt:(c='currentColor',s=14)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>`,
+  fuel:(c='currentColor',s=14)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16"/><path d="M3 21h12"/><path d="M14 9h2a2 2 0 0 1 2 2v5a1.5 1.5 0 0 0 3 0V8l-3-3"/></svg>`,
+  route:(c='currentColor',s=20)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M8 19h7a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h7"/></svg>`,
+  music:(c='currentColor',s=20)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`,
+  dice:(c='currentColor',s=20)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 5"/></svg>`,
+  sparkle:(c='currentColor',s=20)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 17l.8 2.2L22 20l-2.2.8L19 23l-.8-2.2L16 20l2.2-.8z"/></svg>`,
+  x:(c='currentColor',s=18)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>`,
+  check:(c='currentColor',s=14)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>`,
+  q:(c='#1B2430',s=15)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4.5"/><path d="M12 18h.01"/></svg>`,
+  flag:(c='currentColor',s=14)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/></svg>`,
+  home:(c='#fff',s=13)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>`,
+  share:(c='currentColor',s=18)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>`,
+  seat:(c='currentColor',s=20)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v9a3 3 0 0 0 3 3h7"/><path d="M6 21h12l-1-6"/><path d="M14 4c1 1 1 2 0 3s-1 2 0 3"/><path d="M18 4c1 1 1 2 0 3s-1 2 0 3"/></svg>`,
+  snow:(c='currentColor',s=20)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20M4.9 6l14.2 12M19.1 6L4.9 18"/></svg>`
+};
+function arrowSvg(deg,color){return `<svg width="34" height="34" viewBox="0 0 24 24" style="transform:rotate(${deg}deg)" fill="none" stroke="${color}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21V4"/><path d="M5.5 10.5L12 4l6.5 6.5"/></svg>`;}
+function carSvg(id,me){
+  const c=col(id),eye=me?'#fff':'#1B2430';
+  return `<svg width="46" height="30" viewBox="0 0 46 30" aria-hidden="true"><rect x="2" y="2" width="42" height="26" rx="10" fill="${c}" stroke="#fff" stroke-width="2.5"/><rect x="9" y="8" width="15" height="14" rx="5" fill="#fff" opacity=".35"/><circle cx="34" cy="11" r="2.1" fill="${eye}"/><circle cx="34" cy="19" r="2.1" fill="${eye}"/></svg>`;
+}
+const av=(id,cls='')=>`<span class="av ${cls}" style="background:${col(id)}">${CAR[id].short}</span>`;
+
+/* ======================= 안내 문구 ======================= */
+const SKIP=new Set(['depart','new name','continue','notification']);
+const DIR={left:'좌회전',right:'우회전','slight left':'왼쪽 방향','slight right':'오른쪽 방향','sharp left':'급좌회전','sharp right':'급우회전',uturn:'유턴',straight:'직진'};
+const DEG={left:-90,right:90,'slight left':-40,'slight right':40,'sharp left':-135,'sharp right':135,uturn:180,straight:0};
+function instr(st){
+  const side=st.m&&st.m.includes('left')?'왼쪽':'오른쪽',to=st.n?` · ${st.n}`:'';
+  switch(st.t){
+    case 'arrive':return '목적지 도착';
+    case 'off ramp':return `${side} 출구로 나가기${to}`;
+    case 'on ramp':return `${side} 진입로로 들어가기${to}`;
+    case 'fork':return `${side} 길로 가기${to}`;
+    case 'merge':return `합류${to}`;
+    case 'roundabout':case 'rotary':return `회전교차로${to}`;
+    default:return `${DIR[st.m]||'직진'}${to}`;
+  }
+}
+function nextTurn(id){
+  const c=C(id),r=RT[id];
+  // 계획에 들어간 휴게소가 더 가까우면 그걸 먼저 안내
+  const st=S.plan.stops.map(k=>({k,s:SSTOP[id][k]})).filter(x=>x.s>c.s+5).sort((a,b)=>a.s-b.s)[0];
+  for(const step of r.steps){
+    if(step.s<=c.s+5||SKIP.has(step.t))continue;
+    if(st&&st.s<step.s)return {d:st.s-c.s,w:`${RA[st.k].name} 진입 · 같이 쉬어요`,deg:40,stop:true};
+    return {d:step.s-c.s,w:instr(step),deg:step.t==='arrive'?0:(DEG[step.m]??0)};
+  }
+  if(st)return {d:st.s-c.s,w:`${RA[st.k].name} 진입 · 같이 쉬어요`,deg:40,stop:true};
+  return null;
+}
+
+/* ======================= 도메인 ======================= */
+function remainSec(id){
+  const c=C(id),r=RT[id];let sec=(r.len-c.s)/r.v;
+  S.plan.stops.forEach(k=>{if(SSTOP[id][k]>c.s+5)sec+=(S.plan.stay[k]||10)*60;});
+  if(c.state==='rest')sec+=Math.max(0,c.rest);
+  return sec;
+}
+function secTo(id,k){const c=C(id);return (SSTOP[id][k]-c.s)/RT[id].v;}
+function raAvail(k,reason){
+  if(S.plan.stops.includes(k))return {ok:false,why:'이미 들르기로 했어요'};
+  for(const id of IDS){if(secTo(id,k)<90)return {ok:false,why:`${iga(id)} 이미 지나쳤어요`};}
+  if(reason&&!RA[k].fac[reason])return {ok:false,why:'시설이 없어요'};
+  return {ok:true};
+}
+function nextRA(reason){return RA_ORDER.find(k=>raAvail(k,reason).ok)||null;}
+function react(id,text,ms,cls){S.reacts=S.reacts.filter(r=>r.id!==id);S.reacts.push({id,text,cls:cls||'ok',until:Date.now()+(ms||2600)});}
+function toast(t,s,ms,open){S.ui.toast={t,s,until:Date.now()+(ms||4000),open:!!open};}
+
+function send(from,ra,reason){
+  if(S.prop||S.phase!=='drive')return;
+  const votes={};IDS.forEach(i=>votes[i]=null);votes[from]='yes';
+  S.prop={id:S.uid++,from,ra,reason,votes,status:'open',t:Date.now(),text:REASON[reason].msg(RA[ra].name,C(from)),at:clock()};
+  log('srv',`${nm(from)} → 그룹: ${RA[ra].name} ${REASON[reason].label} 제안`);
+  if(from!==S.view)toast(`${iga(from)} 물어봤어요`,'차 옆 말풍선을 눌러 대답해 주세요',4200,true);
+  S.ui.sheet=null;S.ui.ask=from===S.view;
+}
+function vote(id,ans){
+  const p=S.prop;if(!p||p.status!=='open'||p.votes[id])return;
+  p.votes[id]=ans;react(id,ans==='yes'?'좋아요':'다음에 해요',2400,ans==='yes'?'ok':'rest');
+  log('srv',`${nm(id)} ${ans==='yes'?'좋아요':'다음에'}`);
+  if(ans==='no'){p.status='no';p.done=Date.now();toast(`${iga(id)} 다음에 하재요`,'경로는 그대로예요',3500);log('srv',`제안 무산 · 계획 v${S.plan.v} 유지`);}
+  else if(IDS.every(i=>p.votes[i]==='yes'))apply();
+}
+function apply(){
+  const p=S.prop;p.status='ok';p.done=Date.now();
+  const before=remainSec(S.view);
+  S.plan={v:S.plan.v+1,stops:[...S.plan.stops,p.ra],stay:{...S.plan.stay,[p.ra]:REASON[p.reason].stay}};
+  S.stats.stops++;
+  const diff=Math.round((remainSec(S.view)-before)/60);
+  S.ui.lastDiff={v:diff,until:Date.now()+15000};
+  toast(`다 같이 ${RA[p.ra].name}에 들러요`,`모든 차 경로 변경 · 도착 ${diff>=0?'+':''}${diff}분 · 계획 v${S.plan.v}`,6000);
+  log('srv',`모두 동의 → 계획 v${S.plan.v} 배포 (경유지 ${RA[p.ra].name})`);
+  MAP.flash();
+}
+
+/* ======================= 함께 놀기 ======================= */
+const SONG={title:'가을 고속도로',artist:'같이 가요 플레이리스트',len:214};
+function shareSong(from){
+  if(S.music||S.musicAsk)return;
+  S.musicAsk={from,joined:{[from]:true},t:Date.now()};
+  log('srv',`${nm(from)} → 그룹: '${SONG.title}' 같이 듣기 제안`);
+  if(from!==S.view)toast(`${iga(from)} 같이 듣재요`,`'${SONG.title}' · 아래에서 같이 듣기를 눌러요`,4200);
+  else toast('노래를 공유했어요','다른 차가 들어오면 같은 지점부터 함께 재생돼요',3500);
+  S.ui.sheet=null;
+}
+function joinSong(id){
+  const m=S.musicAsk;if(!m||m.joined[id])return;m.joined[id]=true;
+  log('srv',`${nm(id)} 같이 듣기 참여 · 재생 위치 동기화`);
+  if(IDS.every(i=>m.joined[i])){S.music={from:m.from,start:Date.now(),listeners:{...m.joined}};S.musicAsk=null;S.stats.songs++;toast('다 같이 듣는 중','세 차 모두 같은 지점부터 재생해요',3500);}
+}
+const PENALTY=[
+  {k:'seat',label:'동승석 엉따 최강',sub:'시트 히터 3단계 · 60초',icon:'seat',sdk:'Vehicle SDK · 동승석 시트 히터 3단계 (60초 후 원래대로)'},
+  {k:'ac',label:'동승석 에어컨 최강',sub:'동승석 18℃ · 풍량 최대 · 60초',icon:'snow',sdk:'Vehicle SDK · 동승석 공조 18℃, 풍량 최대 (60초 후 원래대로)'}
+];
+function startRoulette(by){
+  if(S.roul)return;
+  const target=IDS[Math.floor(Math.random()*3)],pen=PENALTY[Math.floor(Math.random()*2)];
+  const idx=IDS.indexOf(target);
+  // 바늘(위쪽)에 target 칸 중앙이 오도록: 칸 중심각 = idx*120+60
+  const spins=4*360+(360-(idx*120+60))+(Math.random()*40-20);
+  S.roul={by,target,pen,angle:spins,phase:'spin',t:Date.now()};
+  S.ui.sheet=null;
+  log('srv',`${nm(by)} 벌칙 룰렛 시작`);
+}
+function rouletteDone(){
+  const r=S.roul;if(!r)return;r.phase='result';S.stats.roul++;
+  S.pen={car:r.target,pen:r.pen,until:Date.now()+9000};
+  log('srv',`룰렛 결과: ${nm(r.target)} · ${r.pen.label}`);
+  log('sdk',`${nm(r.target)} ${r.pen.sdk}`);
+  react(r.target,'걸렸다!',3000,'rest');
+}
+
+/* ======================= 행동 ======================= */
+function act(a,arg){
+  const v=S.view;
+  switch(a){
+    case 'view':S.view=arg;S.ui.sheet=null;S.ui.ask=false;S.cam=null;break;
+    case 'create':S.lobby.step='invite';S.lobby.t=Date.now();log('srv',`그룹 생성: ${GROUP} · 초대 코드 ${CODE}`);break;
+    case 'join':S.lobby.joined[v]=true;log('srv',`${nm(v)} 초대 코드로 참여`);break;
+    case 'go':startDrive();break;
+    case 'sheet':S.ui.sheet=arg;S.ui.ask=false;if(arg==='stop'&&!S.ui.reasonSet)S.ui.reason=(CAR[v].kind==='ev'&&C(v).battery<=25)?'charge':'toilet';break;
+    case 'close':S.ui.sheet=null;S.ui.ask=false;break;
+    case 'reason':S.ui.reason=arg;S.ui.reasonSet=true;break;
+    case 'ask-stop':send(v,arg,S.ui.reason);break;
+    case 'ask':S.ui.ask=true;S.ui.sheet=null;if(S.prop)S.ui.seen[S.prop.id]=true;S.ui.toast=null;break;
+    case 'yes':vote(v,'yes');break;
+    case 'no':vote(v,'no');break;
+    case 'cancel-prop':if(S.prop&&S.prop.from===v){log('srv',`${nm(v)} 제안 취소`);S.prop=null;S.ui.ask=false;}break;
+    case 'go-on':{const c=C(v);c.state='drive';c.rest=0;react(v,'출발!');log('srv',`${nm(v)} 다시 출발`);break;}
+    case 'fit':S.ui.fit=!S.ui.fit;break;
+    case 'zin':S.ui.fit=false;S.ui.zoom=Math.min(14,S.ui.zoom+.8);break;
+    case 'zout':S.ui.fit=false;S.ui.zoom=Math.max(7,S.ui.zoom-.8);break;
+    case 'nudge-yes':S.ui.reason='charge';S.ui.reasonSet=true;S.ui.sheet='stop';break;
+    case 'nudge-no':S.ui.nudgeOff=C('A').battery;break;
+    case 'share-song':shareSong(v);break;
+    case 'join-song':joinSong(v);break;
+    case 'stop-song':S.music=null;log('srv',`${nm(v)} 같이 듣기 종료`);break;
+    case 'roulette':startRoulette(v);break;
+    case 'roul-close':S.roul=null;break;
+    case 'pen-cancel':if(S.pen){log('sdk',`${nm(S.pen.car)} 벌칙 취소 · 시트·공조 원래대로`);S.pen=null;}break;
+    case 'toast':if(S.ui.toast&&S.ui.toast.open&&S.prop){S.ui.ask=true;S.ui.seen[S.prop.id]=true;}S.ui.toast=null;break;
+    case 'end':S.ended=true;S.phase='ended';S.ui.sheet=null;S.ui.ask=false;S.music=null;log('srv','그룹 종료 · 모든 차량 위치 공유 중단');break;
+    /* 콘솔 */
+    case 'step':scene(+arg);return;
+    case 'sim-B-toilet':send('B',nextRA('toilet'),'toilet');break;
+    case 'sim-C-song':shareSong('C');break;
+    case 'sim-B-roul':startRoulette('B');break;
+    case 'sim-A-bat':C('A').battery=22;S.ui.nudgeOff=null;log('sdk','우리집 배터리 22% (Vehicle SDK · EV 배터리 잔량 이벤트)');break;
+    case 'speed':S.speed=+arg;break;
+    case 'auto':S.auto=!S.auto;break;
+    case 'net':{const c=C(arg);c.online=!c.online;log('srv',`${nm(arg)} ${c.online?'다시 연결 · 최신 계획 v'+S.plan.v+' 받음':'연결 끊김 · 마지막 위치로 표시'}`);break;}
+    case 'reset':S=fresh();S.cam=null;break;
+  }
+  ui();
+}
+function startDrive(){
+  if(S.phase!=='lobby')return;
+  IDS.forEach(id=>{S.lobby.joined[id]=true;const c=C(id);c.state='drive';});
+  S.phase='drive';S.stats.startSim=S.sim;S.cam=null;
+  log('srv',`모두 출발 · 계획 v1 배포 (목적지 ${DEST})`);
+}
+function scene(n){
+  if(n===1){S=fresh();S.cam=null;}
+  if(n>=2&&S.phase==='lobby')startDrive();
+  if(n===3){ // 원주에서 합류
+    const off={A:4000,B:-2500,C:9500};
+    IDS.forEach(id=>{const c=C(id);c.s=SMERGE[id]+off[id];c.state='drive';c.rest=0;});
+    S.sim=Math.max(S.sim,Math.round(SMERGE.A/RT.A.v)+300);S.cam=null;log('srv','시연: 원주 부근으로 이동');
+  }
+  if(n===4){if(S.phase!=='drive')scene(3);const k=nextRA('toilet');if(k)send('B',k,'toilet');}
+  if(n===5){if(S.phase!=='drive')scene(3);C('A').battery=22;S.ui.nudgeOff=null;log('sdk','우리집 배터리 22% (Vehicle SDK · EV 배터리 잔량 이벤트)');}
+  if(n===6){if(S.phase!=='drive')scene(3);shareSong('C');}
+  if(n===7){if(S.phase!=='drive')scene(3);startRoulette('B');}
+  if(n===8){if(S.phase==='lobby')startDrive();IDS.forEach(id=>{const c=C(id);c.s=RT[id].len-[1800,4200,3000][IDS.indexOf(id)];c.state='drive';});S.sim=Math.max(S.sim,Math.round(RT.A.dur*.98));S.cam=null;log('srv','시연: 강릉 도착 직전으로 이동');}
+  S.step=n;ui();
+}
+
+/* ======================= 지도: 일러스트 / 실제 ======================= */
+const TILE=512;
+function merc(p){const x=(p[0]+180)/360,s=Math.sin(p[1]*R2D);return [x*TILE,(0.5-Math.log((1+s)/(1-s))/(4*Math.PI))*TILE];}
+const W=1280,H=676;
+const MAP={
+  mode:'illu',gl:null,glReady:false,cam:{lng:127.9,lat:37.45,zoom:8},
+  project(p){
+    if(this.mode==='real'&&this.glReady){const q=this.gl.project(p);return [q.x,q.y];}
+    const a=merc(p),c=merc([this.cam.lng,this.cam.lat]),k=2**this.cam.zoom;return [W/2+(a[0]-c[0])*k,H/2+(a[1]-c[1])*k];
+  },
+  setCam(c){
+    this.cam=c;
+    if(this.mode==='real'&&this.glReady){this.gl.jumpTo({center:[c.lng,c.lat],zoom:c.zoom});return;}
+    const m=merc([c.lng,c.lat]),k=2**c.zoom;
+    document.getElementById('illuG').setAttribute('transform',`translate(${(W/2-m[0]*k).toFixed(2)} ${(H/2-m[1]*k).toFixed(2)}) scale(${k.toFixed(4)})`);
+  },
+  lines(){ // 매 250ms 경로선 갱신
+    const v=S.view,me=C(v),r=RT[v];
+    const mine=slice(r,me.s,r.len),done=slice(r,0,me.s);
+    const others=IDS.filter(i=>i!==v).map(i=>({id:i,pts:slice(RT[i],C(i).s,RT[i].len)}));
+    if(this.mode==='real'&&this.glReady){
+      const fc=(arr)=>({type:'FeatureCollection',features:arr});
+      const ls=(pts,props)=>({type:'Feature',properties:props||{},geometry:{type:'LineString',coordinates:pts}});
+      this.gl.getSource('me')?.setData(fc([ls(mine)]));
+      this.gl.getSource('done')?.setData(fc([ls(done)]));
+      this.gl.getSource('others')?.setData(fc(others.map(o=>ls(o.pts,{c:col(o.id)}))));
+      return;
+    }
+    const d=pts=>'M'+pts.map(p=>{const m=merc(p);return m[0].toFixed(4)+' '+m[1].toFixed(4);}).join('L');
+    const set=(id,val)=>{const e=document.getElementById(id);if(e)e.setAttribute('d',val);};
+    set('l-me',d(mine));set('l-done',d(done));
+    others.forEach((o,i)=>{const e=document.getElementById('l-o'+i);if(e){e.setAttribute('d',d(o.pts));e.setAttribute('stroke',col(o.id));}});
+  },
+  flash(){
+    if(this.mode==='real'&&this.glReady){const g=this.gl;g.setPaintProperty('me-line','line-width',12);setTimeout(()=>g.setPaintProperty('me-line','line-width',7),900);return;}
+    const e=document.getElementById('l-me');if(!e)return;e.classList.remove('fl');void e.getBoundingClientRect();e.classList.add('fl');
+  },
+  drawIllu(){
+    const pts=r=>'M'+r.pts.map(p=>{const m=merc(p);return m[0].toFixed(4)+' '+m[1].toFixed(4);}).join('L');
+    const coast=[[128.62,38.6],[128.75,38.1],[128.95,37.85],[129.07,37.68],[129.2,37.45],[129.35,37.1],[129.45,36.6],[131,36.6],[131,38.6]];
+    const poly='M'+coast.map(p=>{const m=merc(p);return m[0].toFixed(4)+' '+m[1].toFixed(4);}).join('L')+'Z';
+    const han=[[126.6,37.62],[126.85,37.58],[126.98,37.52],[127.1,37.53],[127.25,37.55],[127.35,37.5],[127.5,37.4],[127.65,37.3],[127.8,37.2]];
+    const river='M'+han.map(p=>{const m=merc(p);return m[0].toFixed(4)+' '+m[1].toFixed(4);}).join('L');
+    const ns='vector-effect="non-scaling-stroke"';
+    document.getElementById('illuG').innerHTML=`
+      <rect x="0" y="0" width="${TILE}" height="${TILE}" fill="#EEF1F0"/>
+      <path d="${poly}" fill="#D6E7F1"/>
+      <path d="${river}" fill="none" stroke="#D6E7F1" stroke-width="7" ${ns} stroke-linecap="round"/>
+      ${IDS.map(id=>`<path d="${pts(RT[id])}" fill="none" stroke="#D5DBE0" stroke-width="11" ${ns} stroke-linecap="round" stroke-linejoin="round"/>`).join('')}
+      ${IDS.map(id=>`<path d="${pts(RT[id])}" fill="none" stroke="#FFFFFF" stroke-width="7" ${ns} stroke-linecap="round" stroke-linejoin="round"/>`).join('')}
+      <path id="l-done" fill="none" stroke="#B4BCC4" stroke-width="5" ${ns} stroke-linecap="round" stroke-linejoin="round"/>
+      <path id="l-o0" fill="none" stroke-width="3.5" stroke-opacity=".55" ${ns} stroke-linecap="round" stroke-linejoin="round"/>
+      <path id="l-o1" fill="none" stroke-width="3.5" stroke-opacity=".55" ${ns} stroke-linecap="round" stroke-linejoin="round"/>
+      <path id="l-me" fill="none" stroke="#087F70" stroke-width="7" ${ns} stroke-linecap="round" stroke-linejoin="round"/>
+      <style>#l-me.fl{animation:fl 1s ease-out}@keyframes fl{0%{stroke-width:14px;stroke:#3CC4B0}100%{stroke-width:7px}}</style>`;
+  },
+  initReal(){
+    const self=this;
+    return new Promise((res,rej)=>{
+      const css=document.createElement('link');css.rel='stylesheet';css.href='https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';document.head.appendChild(css);
+      const sc=document.createElement('script');sc.src='https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
+      const to=setTimeout(()=>rej(new Error('timeout')),20000);
+      sc.onerror=()=>{clearTimeout(to);rej(new Error('script'));};
+      sc.onload=()=>{
+        try{
+          const el=document.getElementById('gl');el.hidden=false;
+          const g=new maplibregl.Map({container:el,style:STYLE_URL,center:[127.9,37.45],zoom:8,interactive:false,attributionControl:{compact:true},fadeDuration:0});
+          g.on('error',e=>{if(!self.glReady){clearTimeout(to);rej(e.error||e);}});
+          g.on('load',()=>{
+            clearTimeout(to);
+            const empty={type:'FeatureCollection',features:[]};
+            ['done','others','me'].forEach(s=>g.addSource(s,{type:'geojson',data:empty}));
+            g.addLayer({id:'done-line',type:'line',source:'done',paint:{'line-color':'#B4BCC4','line-width':5},layout:{'line-cap':'round','line-join':'round'}});
+            g.addLayer({id:'others-line',type:'line',source:'others',paint:{'line-color':['get','c'],'line-width':3.5,'line-opacity':.6},layout:{'line-cap':'round','line-join':'round'}});
+            g.addLayer({id:'me-casing',type:'line',source:'me',paint:{'line-color':'#FFFFFF','line-width':11},layout:{'line-cap':'round','line-join':'round'}});
+            g.addLayer({id:'me-line',type:'line',source:'me',paint:{'line-color':'#087F70','line-width':7,'line-width-transition':{duration:600}},layout:{'line-cap':'round','line-join':'round'}});
+            self.gl=g;self.glReady=true;el.classList.add('on');console.info('[gachi] 실제 지도 준비됨');setTimeout(()=>{document.getElementById('illu').style.display='none';},450);res();
+          });
+        }catch(e){clearTimeout(to);rej(e);}
+      };
+      document.head.appendChild(sc);
+    });
+  }
+};
+
+/* ======================= 화면 그리기 ======================= */
+function statusOf(id){
+  const c=C(id),v=S.view;
+  if(!c.online)return '연결 끊김';
+  if(S.phase==='lobby')return S.lobby.joined[id]?'출발 준비 완료':'초대 보냄';
+  if(c.state==='rest')return `${RA[c.at].name}에서 쉬는 중`;
+  if(c.state==='arrived')return '도착';
+  if(id===v)return `${Math.round(c.kmh)} km/h로 달리는 중`;
+  // 내 차 경로 위에서 앞/뒤
+  const me=C(v),ds=projectS(RT[v],at(RT[id],c.s))-me.s;
+  const far=mlen(at(RT[v],projectS(RT[v],at(RT[id],c.s))),at(RT[id],c.s))>400;
+  if(far)return `다른 길 · ${km(RT[id].len-c.s)} 남음`;
+  return Math.abs(ds)<150?'바로 옆':`${km(Math.abs(ds))} ${ds>0?'앞':'뒤'}`;
+}
+function energy(id){
+  const c=C(id);
+  if(CAR[id].kind==='ev')return `<span class="chip" title="배터리">${I.bolt()}${c.battery}%</span>`;
+  return `<span class="chip" title="연료">${I.fuel()}${c.fuel}%</span>`;
+}
+function bubbleFor(id){
+  const v=S.view,p=S.prop,c=C(id);
+  const rc=S.reacts.find(r=>r.id===id&&r.until>Date.now());
+  if(rc)return `<span class="bub ${rc.cls} pop">${esc(rc.text)}</span>`;
+  if(p&&p.status==='open'&&p.from===id){
+    if(id!==v&&!p.votes[v])return `<button class="bub q pop" data-act="ask" aria-label="${nm(id)}의 질문 보기">${I.q()}${REASON[p.reason].label}${S.ui.seen[p.id]?'':'<span class="one">1</span>'}</button>`;
+    const n=IDS.filter(i=>p.votes[i]==='yes').length;
+    return `<button class="bub" data-act="ask">${I.cup('#087F70',15)} ${n}/3 좋아요</button>`;
+  }
+  if(S.musicAsk&&S.musicAsk.from===id&&id!==v&&!S.musicAsk.joined[v])return `<button class="bub q pop" data-act="join-song">${I.music('#1B2430',15)}같이 듣기</button>`;
+  if(c.state==='rest')return `<span class="bub rest">쉬는 중</span>`;
+  if(!c.online)return `<span class="bub rest">연결 중…</span>`;
+  return '';
+}
+function overlay(){
+  const v=S.view,ov=document.getElementById('ov');
+  let h='';
+  if(!MAP.glReady)CITIES.forEach(([n,lng,lat,big],i)=>{h+=`<span class="city ${big?'big':''}" data-geo="${lng},${lat}" data-dx="-14" data-dy="-10">${n}</span>`;});
+  RA_ORDER.forEach(k=>{const on=S.plan.stops.includes(k);h+=`<span class="pin ${on?'on':''}" data-geo="${RA[k].at}" data-dx="8" data-dy="-14"><i>${on?I.flag('#fff'):I.cup('#087F70',14)}</i>${RA[k].name}</span>`;});
+  const d=RT.A.pts[RT.A.pts.length-1];
+  h+=`<span class="pin dest" data-geo="${d}" data-dx="-12" data-dy="-15"><i>${I.home()}</i>${DEST}</span>`;
+  [...IDS.filter(i=>i!==v),v].forEach(id=>{const c=C(id);
+    h+=`<div class="car ${id===v?'me':''} ${c.online||id===v?'':'off'}" data-car="${id}" style="--c:${col(id)}">${id===v?'<div class="halo"></div>':''}<div class="rot">${carSvg(id,id===v)}</div><span class="tag">${nm(id)}${id===v?' · 나':''}</span>${S.phase==='drive'?bubbleFor(id):''}</div>`;});
+  ov.innerHTML=h;
+}
+function place(){
+  const v=S.view,me=C(v);
+  const mp=at(RT[v],me.s);
+  let tgt;
+  if(S.phase!=='drive'||S.ui.fit){
+    const ps=S.phase==='lobby'?[...IDS.map(i=>RT[i].pts[0]),RT.A.pts[RT.A.pts.length-1]]:[...IDS.map(i=>at(RT[i],C(i).s)),...S.plan.stops.filter(k=>SSTOP[v][k]>me.s).map(k=>RA[k].at)];
+    if(S.phase==='drive'){const nt=nextTurn(v);if(nt)ps.push(at(RT[v],Math.min(RT[v].len,me.s+nt.d)));}
+    const ms=ps.map(merc);const x0=Math.min(...ms.map(m=>m[0])),x1=Math.max(...ms.map(m=>m[0])),y0=Math.min(...ms.map(m=>m[1])),y1=Math.max(...ms.map(m=>m[1]));
+    const padL=S.phase==='lobby'?120:390,padR=S.phase==='lobby'?120:340,padT=110,padB=S.phase==='lobby'?110:150;
+    const z=Math.log2(Math.min((W-padL-padR)/Math.max(1e-9,x1-x0),(H-padT-padB)/Math.max(1e-9,y1-y0)));
+    const zz=Math.max(6.5,Math.min(12.5,z));const k=2**zz;
+    const cx=(x0+x1)/2+((padR-padL)/2)/k,cy=(y0+y1)/2+((padB-padT)/2)/k;
+    const lng=cx/TILE*360-180,lat=Math.atan(Math.sinh(Math.PI*(1-2*cy/TILE)))/R2D;
+    tgt={lng,lat,zoom:zz};
+  }else{
+    // 내 차를 화면 왼쪽 아래쪽에 두고 앞길을 보이게
+    const k=2**S.ui.zoom,a=merc(mp);
+    const cx=a[0]+(70/k),cy=a[1]-(20/k);
+    tgt={lng:cx/TILE*360-180,lat:Math.atan(Math.sinh(Math.PI*(1-2*cy/TILE)))/R2D,zoom:S.ui.zoom};
+  }
+  if(!S.cam)S.cam={...tgt};
+  const q=.1;S.cam.lng+=(tgt.lng-S.cam.lng)*q;S.cam.lat+=(tgt.lat-S.cam.lat)*q;S.cam.zoom+=(tgt.zoom-S.cam.zoom)*q;
+  MAP.setCam(S.cam);
+  document.querySelectorAll('#ov [data-geo]').forEach(e=>{const g=e.dataset.geo.split(',').map(Number);const p=MAP.project(g);e.style.transform=`translate(${(p[0]+(+e.dataset.dx||0)).toFixed(1)}px,${(p[1]+(+e.dataset.dy||0)).toFixed(1)}px)`;});
+  document.querySelectorAll('#ov [data-car]').forEach(e=>{
+    const id=e.dataset.car,c=C(id),r=RT[id];const p=at(r,c.s),p2=at(r,Math.min(r.len,c.s+120)),p0=at(r,Math.max(0,c.s-120));
+    const a=MAP.project(p),b=MAP.project(p2),z=MAP.project(p0);const ang=Math.atan2(b[1]-z[1],b[0]-z[0]);
+    e.style.transform=`translate(${a[0].toFixed(1)}px,${a[1].toFixed(1)}px)`;
+    const rot=e.querySelector('.rot');if(rot&&isFinite(ang))rot.style.transform=`rotate(${ang}rad)`;
+  });
+}
+function askHTML(){
+  const p=S.prop,v=S.view;if(!p)return '';
+  const mine=p.from===v,m=secTo(v,p.ra);
+  const votes=IDS.map(i=>{const x=p.votes[i];return x?`<span class="vt">${av(i)}${nm(i)} ${x==='yes'?'좋아요':'다음에'}</span>`:`<span class="vt wait">${av(i)}${nm(i)} ${C(i).online?'대답 전':'연결 끊김'}</span>`;}).join('');
+  let acts='';
+  if(p.status!=='open')acts=`<div class="done ${p.status==='ok'?'':'no'}">${p.status==='ok'?'모두 좋대요. 모든 차의 경로를 바꿨어요':'이번엔 다음으로 미뤘어요'}</div>`;
+  else if(mine)acts=`<div class="acts"><button class="kb o" data-act="cancel-prop">요청 취소</button></div>`;
+  else if(!p.votes[v])acts=`<div class="acts"><button class="kb p" data-act="yes">${I.check('#fff',18)}좋아요</button><button class="kb o" data-act="no">다음에</button></div><div class="voice">운전 중이면 "좋아요"라고 말해도 돼요</div>`;
+  else acts=`<div class="done no">대답했어요. 다른 차를 기다리는 중이에요</div>`;
+  return `<div class="ask card" role="dialog" aria-label="그룹 질문">
+    <div class="hd">${av(p.from)}<b>${mine?'내가 물어봤어요':iga(p.from)+' 물어봤어요'}</b><span class="num" style="font-size:12px;color:var(--muted)">${p.at}</span><button class="x" data-act="close" aria-label="닫기">${I.x()}</button></div>
+    <p>${esc(p.text)}</p>
+    <div class="meta"><span>${RA[p.ra].name}</span><span>나는 약 ${Math.max(1,Math.round(m/60))}분 뒤 도착</span><span>쉬는 시간 ${REASON[p.reason].stay}분</span><span>${esc(RA[p.ra].note)}</span></div>
+    <div class="votes">${votes}</div>${acts}</div>`;
+}
+function sheetHTML(){
+  const v=S.view,k=CAR[v].kind;
+  if(S.ui.sheet==='stop'){
+    const chips=Object.keys(REASON).map(r=>{const dis=(r==='charge'&&k==='gas')||(r==='fuel'&&k==='ev');return `<button data-act="reason" data-arg="${r}" aria-pressed="${S.ui.reason===r}" ${dis?'disabled':''}>${REASON[r].label}</button>`;}).join('');
+    const opts=RA_ORDER.map(ra=>{const a=raAvail(ra,S.ui.reason);if(!a.ok&&/지나쳤/.test(a.why))return '';
+      const etas=IDS.map(i=>`<span><i style="background:${col(i)}"></i>${nm(i)} ${Math.max(1,Math.round(secTo(i,ra)/60))}분</span>`).join('');
+      return `<div class="opt ${a.ok?'':'na'}"><div class="ico">${I.cup('#087F70',26)}</div><div><div class="ttl">${RA[ra].name}</div><div class="sub">${a.ok?esc(RA[ra].note)+' · 모두의 진행 방향':a.why}</div><div class="etas">${etas}</div></div>
+        <button class="kb ${a.ok?'p':''}" data-act="ask-stop" data-arg="${ra}" ${a.ok&&!S.prop?'':'disabled'}>물어보기</button></div>`;}).join('');
+    return `<div class="dim" data-act="close"></div><div class="sheet" role="dialog" aria-label="휴게소 제안">
+      <h3>어디서 쉬어 갈까요? <button class="kb o sm" data-act="close">닫기</button></h3>
+      <p class="s">모두에게 물어봐요. 모두 좋다고 하면 모든 차의 경로에 휴게소가 들어가요.</p>
+      <div class="chips">${chips}</div>${opts||'<div class="empty">세 차가 모두 아직 지나지 않은 휴게소가 없어요.</div>'}</div>`;
+  }
+  if(S.ui.sheet==='play'){
+    const busy=!!(S.music||S.musicAsk);
+    return `<div class="dim" data-act="close"></div><div class="sheet" role="dialog" aria-label="함께 놀기">
+      <h3>함께 놀기 <button class="kb o sm" data-act="close">닫기</button></h3>
+      <p class="s">떨어져 달려도 같은 차에 탄 것처럼. 운전자는 화면을 오래 보지 않도록 한 번만 누르면 돼요.</p>
+      <div class="play">
+        <div class="pcard"><span class="ico" style="background:rgba(8,127,112,.1)">${I.music('#087F70',24)}</span><h5>같은 노래 듣기</h5><p>지금 듣는 노래를 공유하면 세 차가 같은 지점부터 함께 들어요.</p><button class="kb p" data-act="share-song" ${busy?'disabled':''}>${I.share('#fff')}'${SONG.title}' 공유</button></div>
+        <div class="pcard"><span class="ico" style="background:rgba(255,200,69,.3)">${I.dice('#1B2430',24)}</span><h5>벌칙 룰렛</h5><p>걸린 차의 동승석에 엉따 최강이나 에어컨 최강이 1분 동안 켜져요. 운전석은 건드리지 않아요.</p><button class="kb y" data-act="roulette" ${S.roul?'disabled':''}>룰렛 돌리기</button></div>
+      </div></div>`;
+  }
+  return '';
+}
+function rouletteHTML(){
+  const r=S.roul;if(!r)return '';
+  const seg=(i)=>{const a0=(i*120-90)*R2D,a1=((i+1)*120-90)*R2D;const x0=125+120*Math.cos(a0),y0=125+120*Math.sin(a0),x1=125+120*Math.cos(a1),y1=125+120*Math.sin(a1);
+    const am=((i*120+60)-90)*R2D;return `<path d="M125 125 L${x0.toFixed(1)} ${y0.toFixed(1)} A120 120 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)}Z" fill="${col(IDS[i])}"/><text x="${(125+74*Math.cos(am)).toFixed(1)}" y="${(125+74*Math.sin(am)+6).toFixed(1)}" text-anchor="middle" font-size="18" font-weight="700" fill="#fff" font-family="Noto Sans KR, sans-serif">${nm(IDS[i])}</text>`;};
+  const res=r.phase==='result'?`<div class="res"><b>${nm(r.target)} 당첨 · ${r.pen.label}</b><span>${r.pen.sub} · 운전석은 그대로예요</span><span class="sdk">${esc(r.pen.sdk)}</span></div><button class="kb p" data-act="roul-close">닫기</button>`:`<div class="res"><span>누가 걸릴까요…</span></div>`;
+  return `<div class="rl"><div class="rlc ${r.phase==='result'?'still':''}" role="dialog" aria-label="벌칙 룰렛"><h3>벌칙 룰렛</h3><p class="s">${iga(r.by)} 돌렸어요</p>
+    <div class="wheel"><svg id="wheel" viewBox="0 0 250 250" style="transform:rotate(${r.applied?r.angle:0}deg)">${[0,1,2].map(seg).join('')}<circle cx="125" cy="125" r="22" fill="#fff"/><circle cx="125" cy="125" r="6" fill="#1B2430"/></svg><span class="needle"></span></div>${res}</div></div>`;
+}
+function coverHTML(){
+  const v=S.view;
+  if(S.phase==='lobby'){
+    if(v!=='A'&&!S.lobby.joined[v]&&S.lobby.step==='invite')return `<div class="cover"><div class="lob">
+      <h2>${iga('A')} 초대했어요</h2><p class="s">${GROUP} · 목적지 ${DEST}</p>
+      <div class="code"><div><div style="font-size:12.5px;color:var(--muted)">초대 코드</div><b>${CODE}</b></div>${av('A')}</div>
+      <p class="s" style="margin:0">참여하면 출발부터 도착까지 서로의 위치와 차량 상태(배터리·연료)를 함께 봐요. 그룹이 끝나면 공유도 끝나요.</p>
+      <button class="kb p" data-act="join" style="justify-content:center">참여하기</button></div></div>`;
+    if(v!=='A'&&S.lobby.step!=='invite')return `<div class="cover"><div class="lob"><h2>아직 초대가 없어요</h2><p class="s">우리집 화면에서 그룹을 만들면 초대가 와요.</p></div></div>`;
+    if(S.lobby.step==='create')return `<div class="cover"><div class="lob">
+      <h2>어디로 같이 갈까요?</h2><p class="s">따로 출발해도 한 지도에서 함께 가요.</p>
+      <div class="field"><label>목적지</label><div class="v">${I.home('#087F70',18)}${DEST} <span style="color:var(--muted);font-weight:400;font-size:14px">강원 강릉시</span></div></div>
+      <div class="field"><label>그룹 이름</label><div class="v">${GROUP}</div></div>
+      <button class="kb p" data-act="create" style="justify-content:center">그룹 만들고 초대하기</button></div></div>`;
+    const rows=IDS.map(i=>`<div class="row">${av(i)}<div><div style="font-weight:500">${nm(i)}${i===v?' (나)':''}</div><div style="font-size:12px;color:var(--muted)">${CAR[i].kindLabel}</div></div>${S.lobby.joined[i]?`<span class="ok">${I.check('#087F70')}참여</span>`:'<span class="wt">초대 보냄</span>'}</div>`).join('');
+    const n=IDS.filter(i=>S.lobby.joined[i]).length;
+    return `<div class="cover"><div class="lob">
+      <h2>${GROUP}</h2><p class="s">초대 코드를 가족 단톡방에 보내면 차에서 바로 참여해요.</p>
+      <div class="code"><div><div style="font-size:12.5px;color:var(--muted)">초대 코드</div><b>${CODE}</b></div><button class="kb o sm">${I.share()}초대 링크 보내기</button></div>
+      <div class="mem">${rows}</div>
+      <button class="kb p" data-act="go" ${n<2?'disabled':''} style="justify-content:center">${n}대 같이 출발</button></div></div>`;
+  }
+  if(S.phase==='ended')return `<div class="cover"><div class="lob" style="align-items:center;text-align:center"><h2>그룹이 끝났어요</h2><p class="s" style="margin:0">모든 차의 위치와 차량 상태 공유를 멈췄어요. 즐거운 명절 보내세요.</p><button class="kb p" data-act="step" data-arg="1" style="justify-content:center">처음부터 다시</button></div></div>`;
+  if(C(v).state==='arrived'){
+    const tot=(S.sim-(S.stats.startSim||0));
+    const who=IDS.map(i=>`<div class="row">${av(i)}<div style="font-weight:500">${nm(i)}</div>${C(i).state==='arrived'?`<span class="ok">${I.check('#087F70')}도착</span>`:`<span class="wt">${durs(remainSec(i))} 남음</span>`}</div>`).join('');
+    return `<div class="cover"><div class="lob">
+      <h2>${DEST} 도착</h2><p class="s">오늘 함께 달린 기록이에요. 추억 카드로 남겨 둘게요.</p>
+      <div class="recap"><div><b>${durs(tot)}</b><span>함께 달린 시간</span></div><div><b>${S.stats.stops}곳</b><span>같이 들른 휴게소</span></div><div><b>${S.stats.songs}곡</b><span>같이 들은 노래</span></div><div><b>${S.stats.roul}번</b><span>벌칙 룰렛</span></div></div>
+      <div class="mem">${who}</div>
+      <button class="kb p" data-act="end" style="justify-content:center">그룹 끝내고 위치 공유 멈추기</button></div></div>`;
+  }
+  return '';
+}
+function ui(){
+  const v=S.view,c=C(v),p=S.prop,drive=S.phase==='drive';
+  document.getElementById('sbar').innerHTML=`<div class="l"><span class="num" data-live="clock" style="font-weight:600">${clock()}</span><span style="color:var(--muted)">${nm(v)} · ${CAR[v].kindLabel}</span></div>
+    <div class="mid">같이 가요 <small>${GROUP}</small></div>
+    <div class="r"><span class="pill num" data-live="kmh">${drive&&c.state==='drive'?Math.round(c.kmh):0} km/h</span><span class="pill">${c.state==='drive'&&drive?'D':'P'}</span><span class="pill"><span class="ndot ${c.online?'':'bad'}"></span>${c.online?'연결됨':'연결 끊김'}</span></div>`;
+  overlay();
+  let h='';
+  if(drive){
+    const rest=c.state==='rest',nt=nextTurn(v);
+    h+=rest?`<div class="turn rest"><div class="ar">${I.cup('#087F70',30)}</div><div><div class="d" style="font-size:24px">${RA[c.at].name}</div><div class="w">쉬는 중 · 준비되면 출발해요</div></div></div>`
+      :nt?`<div class="turn"><div class="ar">${nt.stop?I.cup('#087F70',30):arrowSvg(nt.deg,'#087F70')}</div><div><div class="d" data-live="tdist">${km(nt.d)}</div><div class="w">${esc(nt.w)}</div></div></div>`:'';
+    h+=`<div class="grp card"><h4>같이 가는 차 <small>계획 v${S.plan.v}</small></h4>${IDS.map(id=>{
+      const ask=p&&p.status==='open'&&p.from===id&&id!==v&&!p.votes[v];
+      return `<div class="gr">${av(id)}<div><div class="nm">${nm(id)}${id===v?' (나)':''}</div><div class="st" data-live="st-${id}">${statusOf(id)}</div></div>${ask?`<button class="qbtn" data-act="ask">질문 1</button>`:energy(id)}</div>`;}).join('')}</div>`;
+    const diff=S.ui.lastDiff&&S.ui.lastDiff.until>Date.now()?`<span class="chg">경로 변경 ${S.ui.lastDiff.v>=0?'+':''}${S.ui.lastDiff.v}분</span>`:'';
+    const waiting=p&&p.status==='open';
+    h+=`<div class="bar card"><div class="eta"><b data-live="eta">${clock(remainSec(v))} <span>도착</span></b>${diff}<small data-live="rem">${km(RT[v].len-c.s)} · ${durs(remainSec(v))} 남음 · ${DEST}</small></div><span class="sp"></span>
+      ${rest?`<button class="kb p" data-act="go-on">출발 준비 완료</button>`
+        :`<button class="kb t" data-act="sheet" data-arg="stop" ${waiting||!c.online?'disabled':''}>${I.cup('#087F70')}휴게소 들르자</button>`}
+      <button class="kb" data-act="sheet" data-arg="play" ${!c.online?'disabled':''}>${I.sparkle()}함께 놀기</button>
+      ${waiting?`<button class="kb y" data-act="ask">${I.q('#1B2430',18)}${p.from===v?'대답 보기':'질문 보기'}</button>`:''}</div>`;
+    h+=`<div class="zoom"><button data-act="zin" aria-label="확대">+</button><button data-act="zout" aria-label="축소">−</button><button class="fit" data-act="fit" aria-pressed="${S.ui.fit}" aria-label="모든 차 보기">전체</button></div>`;
+    if(S.music&&S.music.listeners[v]){const el=((Date.now()-S.music.start)/1000)%SONG.len;
+      h+=`<div class="mini card">${'<span class="art">'+I.music('#fff',20)+'</span>'}<div><div class="t">${SONG.title}</div><div class="s">${SONG.artist} · 같이 듣는 중</div></div><div class="avs">${IDS.map(i=>av(i)).join('')}</div><div class="prog"><i data-live="prog" style="width:${(el/SONG.len*100).toFixed(1)}%"></i></div><button class="kb o sm" data-act="stop-song">그만 듣기</button></div>`;}
+    else if(S.musicAsk&&!S.musicAsk.joined[v])h+=`<div class="mini card"><span class="art">${I.music('#fff',20)}</span><div><div class="t">${iga(S.musicAsk.from)} 같이 듣재요</div><div class="s">'${SONG.title}' · ${SONG.artist}</div></div><button class="kb p sm" data-act="join-song">같이 듣기</button></div>`;
+    else if(S.musicAsk&&S.musicAsk.joined[v])h+=`<div class="mini card"><span class="art">${I.music('#fff',20)}</span><div><div class="t">다른 차를 기다리는 중</div><div class="s">${IDS.filter(i=>S.musicAsk.joined[i]).length}/3 참여</div></div></div>`;
+    else if(v==='A'&&c.battery<=25&&!p&&!S.ui.sheet&&!rest&&!(S.ui.nudgeOff!=null&&c.battery>S.ui.nudgeOff-5)){
+      const k=nextRA('charge');
+      h+=`<div class="nudge card">${I.bolt('#087F70',20)}<span>배터리 <b class="num">${c.battery}%</b>${k?` · ${RA[k].name}에 급속충전기가 있어요`:''}</span><button class="kb p sm" data-act="nudge-yes" ${k?'':'disabled'}>같이 충전하자고 하기</button><button class="kb o sm" data-act="nudge-no">괜찮아요</button></div>`;}
+    if(S.ui.toast&&S.ui.toast.until>Date.now())h+=`<button class="toast" data-act="toast">${esc(S.ui.toast.t)}<small>${esc(S.ui.toast.s)}</small></button>`;
+    if(S.pen&&S.pen.until>Date.now()&&S.pen.car===v)h+=`<div class="pen">${S.pen.pen.k==='seat'?I.seat('#FFC845',26):I.snow('#9FE3D8',26)}<div><b>벌칙 · ${S.pen.pen.label}</b><small>${S.pen.pen.sub} · 운전석은 그대로예요</small></div><button class="kb" data-act="pen-cancel">봐주기</button></div>`;
+    else if(S.pen&&S.pen.until>Date.now())h+=`<div class="pen">${I.dice('#FFC845',24)}<div><b>${iga(S.pen.car)} 걸렸어요</b><small>${S.pen.pen.label} · 1분</small></div></div>`;
+    if(S.ui.ask)h+=askHTML();
+    h+=sheetHTML();
+  }
+  document.getElementById('ui').innerHTML=h;
+  document.getElementById('cover').innerHTML=coverHTML();
+  const rk=S.roul&&S.phase==='drive'?S.roul.phase+S.roul.t:'';
+  if(rk!==ui.rk){ui.rk=rk;document.getElementById('rlbox').innerHTML=S.phase==='drive'?rouletteHTML():'';
+    if(S.roul&&!S.roul.applied){S.roul.applied=true;const t0=S.roul.t;requestAnimationFrame(()=>requestAnimationFrame(()=>{const w=document.getElementById('wheel');if(w)w.style.transform=`rotate(${S.roul.angle}deg)`;}));setTimeout(()=>{if(S.roul&&S.roul.t===t0&&S.roul.phase==='spin'){rouletteDone();ui();}},2800);}}
+  document.querySelectorAll('.vbtn').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.arg===S.view)));
+  MAP.lines();
+  renderConsole();
+  place();
+}
+
+/* ======================= 콘솔 ======================= */
+const STEPS=[[1,'그룹 만들기·초대'],[2,'다 같이 출발'],[3,'원주에서 합류 (건너뛰기)'],[4,'큰집: 화장실 급해요'],[5,'우리집 배터리 22%'],[6,'작은집: 같이 듣기'],[7,'큰집: 벌칙 룰렛'],[8,'강릉 도착 (건너뛰기)']];
+function hint(){
+  const p=S.prop,v=S.view,c=C(v);
+  if(S.phase==='ended')return '그룹이 끝나 위치 공유가 멈췄어요. 1번부터 다시 시연할 수 있어요.';
+  if(S.phase==='lobby')return S.lobby.step==='create'?'우리집 화면에서 ‘그룹 만들고 초대하기’를 눌러 보세요. 위쪽에서 큰집·작은집 화면으로 바꾸면 초대받는 쪽도 볼 수 있어요.':'초대받은 차들이 참여하면 ‘같이 출발’을 눌러요. 2번을 눌러도 바로 출발해요.';
+  if(c.state==='arrived')return '도착하면 함께 달린 기록이 추억 카드로 남아요. 그룹을 끝내면 위치 공유도 멈춰요.';
+  if(c.state==='rest')return '휴게소에 도착했어요. ‘출발 준비 완료’를 누르면 다시 출발해요.';
+  if(p&&p.status==='open'){if(p.from!==v&&!p.votes[v])return `${nm(p.from)} 차 옆에 노란 말풍선이 떴어요. 눌러서 ‘좋아요’를 누르면, 모두 동의하는 순간 경로가 바뀌어요.`;return S.auto?'다른 차들이 곧 대답해요.':'자동 대답이 꺼져 있어요. 위에서 다른 차 화면으로 바꿔 직접 대답해 보세요.';}
+  if(S.musicAsk&&!S.musicAsk.joined[v])return '아래 ‘같이 듣기’를 누르면 세 차가 같은 지점부터 같은 노래를 들어요.';
+  if(S.roul)return '룰렛이 멈추면 걸린 차의 동승석 시트 히터나 에어컨이 Vehicle SDK로 1분 동안 켜져요. 운전석은 건드리지 않아요.';
+  const m=Math.min(...IDS.map(i=>C(i).s-SMERGE[i]));
+  if(m<-3000)return '세 차가 서로 다른 길로 오고 있어요. 3번으로 원주 합류 지점까지 건너뛰거나, 속도를 올려 보세요.';
+  return '4~7번을 차례로 눌러 휴게소 제안, 충전 제안, 같이 듣기, 벌칙 룰렛을 볼 수 있어요. 아래 버튼으로 직접 제안해도 돼요.';
+}
+function renderConsole(){
+  const busy=S.phase!=='drive';
+  const c=C('A');
+  document.getElementById('console').innerHTML=`
+  <section class="cb hint"><h3>다음에 해볼 것</h3><p>${hint()}</p></section>
+  <section class="cb"><h3>시연 순서</h3><p class="n">누르면 그 장면으로 바로 가요.</p><div class="steps">${STEPS.map(([n,t])=>`<button class="stp" data-act="step" data-arg="${n}" ${S.step===n?'aria-current="step"':''}><i>${n}</i><span>${t}</span></button>`).join('')}</div></section>
+  <section class="cb"><h3>차량 데이터 (Vehicle SDK)</h3><p class="n">에뮬레이터에서 읽는 값을 흉내 냈어요.</p><div class="vlive">
+    <span>우리집 배터리</span><span data-live="v-bat">${c.battery}%</span>
+    <span>우리집 속도</span><span data-live="v-kmh">${Math.round(c.kmh)} km/h</span>
+    <span>큰집 연료</span><span>${C('B').fuel}%</span>
+    <span>작은집 연료</span><span>${C('C').fuel}%</span></div></section>
+  <section class="cb"><h3>시연 설정</h3>
+    <div class="row2"><span>다른 차 자동 대답</span><button class="sw" role="switch" aria-checked="${S.auto}" data-act="auto" aria-label="다른 차 자동 대답"></button></div>
+    <div class="row2"><span>재생 속도</span><span class="seg">${SPEEDS.map(([s,l])=>`<button data-act="speed" data-arg="${s}" aria-pressed="${S.speed===s}">${l}</button>`).join('')}</span></div>
+    ${IDS.map(id=>`<div class="row2"><span>${nm(id)} 연결</span><button class="sw" role="switch" aria-checked="${C(id).online}" data-act="net" data-arg="${id}" aria-label="${nm(id)} 연결"></button></div>`).join('')}
+  </section>
+  <section class="cb"><h3>기록</h3><p class="n">서버: 그룹 서버 · SDK: 차량 제어</p><ul class="log">${S.log.length?S.log.map(l=>`<li><time>${l.t}</time><span class="lt ${l.kind}">${l.kind==='sdk'?'SDK':'서버'}</span><span>${esc(l.m)}</span></li>`).join(''):'<li><time></time><span></span><span style="color:var(--muted)">아직 기록이 없어요.</span></li>'}</ul></section>
+  <button class="reset" data-act="step" data-arg="1">처음부터</button>`;
+}
+
+/* ======================= 루프 ======================= */
+let dirty=false,last=performance.now();
+function step(dt){
+  if(S.phase!=='drive')return;
+  S.sim+=dt*RATE;
+  IDS.forEach(id=>{
+    const c=C(id),r=RT[id];
+    if(c.state==='drive'){
+      const ns=c.s+r.v*dt*RATE;
+      let stopped=false;
+      for(const k of S.plan.stops){const sd=SSTOP[id][k];if(c.s<sd&&ns>=sd){c.s=sd;c.state='rest';c.at=k;c.rest=(S.plan.stay[k]||10)*60;react(id,'도착!',2600);log('srv',`${nm(id)} ${RA[k].name} 도착`);if(id==='A'&&S.plan.stay[k]>=25){c.battery=Math.min(80,c.battery+38);log('sdk','우리집 급속충전 완료 · 배터리 '+c.battery+'%');}dirty=true;stopped=true;break;}}
+      if(!stopped){c.s=Math.min(r.len,ns);if(c.s>=r.len){c.state='arrived';react(id,'도착!',3000);log('srv',`${nm(id)} ${DEST} 도착`);dirty=true;}}
+      c.kmh=c.state==='drive'?(r.v*3.6)*(0.92+0.1*Math.sin(S.sim/90+IDS.indexOf(id))):0;
+      if(id==='A'&&c.state==='drive'){c.drain+=dt*RATE;if(c.drain>=420){c.drain=0;if(c.battery>6){c.battery--;if(c.battery===25)dirty=true;}}}
+    }else if(c.state==='rest'){
+      c.rest-=dt*RATE;
+      if(id!==S.view&&c.rest<=0){c.state='drive';react(id,'출발!');log('srv',`${nm(id)} 다시 출발`);dirty=true;}
+      if(id===S.view&&c.rest<=-600){c.state='drive';dirty=true;}
+    }
+  });
+}
+function periodic(){
+  const now=Date.now(),p=S.prop;
+  if(S.phase==='lobby'&&S.lobby.step==='invite'){
+    const t=now-S.lobby.t;
+    if(!S.lobby.joined.B&&t>1600&&S.view!=='B'){S.lobby.joined.B=true;log('srv','큰집 초대 코드로 참여');dirty=true;}
+    if(!S.lobby.joined.C&&t>3400&&S.view!=='C'){S.lobby.joined.C=true;log('srv','작은집 초대 코드로 참여');dirty=true;}
+  }
+  if(p&&p.status==='open'&&S.auto)IDS.forEach((id,i)=>{if(id===S.view||p.votes[id]||!C(id).online)return;if(now-p.t>1700+i*900){vote(id,'yes');dirty=true;}});
+  if(p&&p.status!=='open'&&now-p.done>2600){S.prop=null;S.ui.ask=false;dirty=true;}
+  if(S.musicAsk&&S.auto)IDS.forEach((id,i)=>{if(id===S.view||S.musicAsk?.joined[id])return;if(now-S.musicAsk.t>1500+i*800){joinSong(id);dirty=true;}});
+  const n0=S.reacts.length;S.reacts=S.reacts.filter(r=>r.until>now);if(S.reacts.length!==n0)dirty=true;
+  if(S.ui.toast&&S.ui.toast.until<=now){S.ui.toast=null;dirty=true;}
+  if(S.ui.lastDiff&&S.ui.lastDiff.until<=now){S.ui.lastDiff=null;dirty=true;}
+  if(S.pen&&S.pen.until<=now){log('sdk',`${nm(S.pen.car)} 벌칙 끝 · 시트·공조 원래대로`);S.pen=null;dirty=true;}
+  const nt=S.phase==='drive'?nextTurn(S.view):null,key=(nt?nt.w:'')+C(S.view).state+S.phase;
+  if(periodic.k!==key){periodic.k=key;dirty=true;}
+}
+function live(){
+  const v=S.view,c=C(v);
+  const q=(sel,t)=>{const e=document.querySelector(`[data-live="${sel}"]`);if(e&&e.innerHTML!==t)e.innerHTML=t;};
+  q('clock',clock());
+  if(S.phase==='drive'){
+    q('eta',`${clock(remainSec(v))} <span>도착</span>`);q('rem',`${km(RT[v].len-c.s)} · ${durs(remainSec(v))} 남음 · ${DEST}`);
+    const nt=nextTurn(v);if(nt)q('tdist',km(nt.d));
+    IDS.forEach(id=>q('st-'+id,statusOf(id)));
+    q('kmh',`${c.state==='drive'?Math.round(c.kmh):0} km/h`);q('v-bat',`${C('A').battery}%`);q('v-kmh',`${Math.round(C('A').kmh)} km/h`);
+    const pg=document.querySelector('[data-live="prog"]');if(pg&&S.music){pg.style.width=((((Date.now()-S.music.start)/1000)%SONG.len)/SONG.len*100).toFixed(1)+'%';}
+  }
+  MAP.lines();
+}
+function frame(ts){
+  const dt=Math.min(.1,(ts-last)/1000)*S.speed;last=ts;
+  step(dt);
+  if(!frame.t||ts-frame.t>250){frame.t=ts;periodic();if(dirty){dirty=false;ui();}else live();}
+  place();
+  requestAnimationFrame(frame);
+}
+
+/* ======================= 시작 ======================= */
+document.addEventListener('click',e=>{const t=e.target.closest('[data-act]');if(!t||t.disabled)return;act(t.dataset.act,t.dataset.arg);});
+function fit(){const st=document.getElementById('stage');const s=Math.max(.25,Math.min(1,st.clientWidth/1304));document.documentElement.style.setProperty('--s',s.toFixed(4));}
+new ResizeObserver(fit).observe(document.getElementById('stage'));
+S=fresh();
+MAP.drawIllu();
+const h=location.hostname,tok=location.hash.replace('#','').split('-');
+const wantReal=tok.includes('real')||(!tok.includes('illust')&&(h.endsWith('github.io')||h==='localhost'||h==='127.0.0.1'||location.protocol==='file:'));
+const sc=tok.map(t=>/^s([1-8])$/.exec(t)).find(Boolean);
+const foot=m=>{document.getElementById('foot').innerHTML=`시연용 화면이에요. 경로는 OSRM으로 미리 계산한 실제 도로 경로이고, 차량 위치는 그 경로를 따라 약 30배속으로 움직여요. 지도: <b>${m}</b>. 배터리·시트·공조 값은 Vehicle SDK 에뮬레이터 값을 흉내 냈고, 그룹 서버 동작도 이 페이지 안에서 흉내 냈어요.`;};
+foot('일러스트 지도');
+fit();ui();if(sc){const n=+sc[1];for(let i=2;i<=n;i++){if(i===3||i===n||i===8||i===2)scene(i);}}requestAnimationFrame(t=>{last=t;frame(t);});
+if(wantReal){MAP.mode='real';MAP.initReal().then(()=>{foot('실제 지도 · © OpenFreeMap, OpenStreetMap');S.cam=null;dirty=true;}).catch(err=>{console.warn('[gachi] 실제 지도 실패:',err&&(err.message||err));MAP.mode='illu';MAP.gl=null;MAP.glReady=false;document.getElementById('gl').hidden=true;document.getElementById('illu').style.display='';foot('일러스트 지도 (실제 지도를 불러오지 못했어요)');dirty=true;});}
+})();
+</script>
+</body>
+</html>
