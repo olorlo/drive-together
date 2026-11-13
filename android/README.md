@@ -12,7 +12,7 @@
 app/src/main/java/com/drivetogether/
 ├── core/
 │   ├── designsystem/    # 색상, 타이포, 공통 컴포넌트 (버튼, 말풍선, 바텀시트)
-│   ├── network/         # Retrofit, WebSocket(STOMP) 클라이언트 설정
+│   ├── network/         # Retrofit, WebSocket(OkHttp) 클라이언트 설정
 │   └── util/
 ├── data/
 │   ├── remote/          # REST API, WebSocket 메시지 DTO

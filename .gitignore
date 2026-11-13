@@ -7,7 +7,7 @@ desktop.ini
 .vscode/
 *.swp
 
-# ===== Gradle (공통) =====
+# ===== Gradle (android) =====
 .gradle/
 build/
 !gradle/wrapper/gradle-wrapper.jar
@@ -27,12 +27,15 @@ android/.cxx/
 *.keystore
 google-services.json
 
-# ===== Spring Boot =====
-server/out/
-server/bin/
-server/src/main/resources/application-local.yml
-server/src/main/resources/application-local.yaml
-server/src/main/resources/application-secret.yml
+# ===== Python (server) =====
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.db
 *.log
 logs/
 

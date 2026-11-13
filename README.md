@@ -8,14 +8,14 @@
 | 영역 | 스택 |
 | --- | --- |
 | 차량 앱 | Android (Kotlin, Jetpack Compose), Vehicle SDK |
-| 그룹 서버 | Spring Boot, WebSocket(STOMP) |
+| 그룹 서버 | Python, FastAPI, WebSocket |
 
 ## 폴더 구조
 
 ```
 drive-together/
 ├── android/        # 차량 앱 (Android Studio 프로젝트 루트) → android/README.md
-├── server/         # 그룹 서버 (Spring Boot 프로젝트 루트) → server/README.md
+├── server/         # 그룹 서버 (FastAPI) → server/README.md
 ├── docs/           # API·메시지 명세, 설계, 회의록 → docs/README.md
 └── .github/        # PR·이슈 템플릿
 ```

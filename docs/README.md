@@ -2,7 +2,7 @@
 
 ```
 docs/
-├── api/        # REST API 명세, WebSocket(STOMP) 토픽·메시지 명세
+├── api/        # REST API 명세, WebSocket 메시지 명세
 ├── design/     # 화면 설계, 시연 시나리오, 아키텍처 그림
 └── meeting/    # 회의록 (파일명: YYYY-MM-DD.md)
 ```

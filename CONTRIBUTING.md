@@ -105,6 +105,6 @@ docs: WebSocket 메시지 명세 추가 (#3)
 
 ## 5. 기타
 
-- 비밀값(API 키, 키스토어, `local.properties`, `application-local.yml`)은 절대 커밋하지 않는다. 필요하면 팀 채널로 공유
+- 비밀값(API 키, 키스토어, `local.properties`, `.env`)은 절대 커밋하지 않는다. 필요하면 팀 채널로 공유
 - 줄바꿈은 `.gitattributes`로 LF 통일 (Windows 사용자도 그대로 두면 됨)
 - 들여쓰기 등 기본 포맷은 `.editorconfig`를 따른다
