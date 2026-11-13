@@ -46,4 +46,5 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     implementation(libs.pleos.vehicle)
+    implementation(libs.maplibre.android)
 }
