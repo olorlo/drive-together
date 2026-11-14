@@ -1,6 +1,6 @@
 package com.gachigayo.feature.drive
 
-import com.gachigayo.data.route.Route
+import com.gachigayo.data.route.RouteLine
 import com.gachigayo.data.route.RouteStep
 
 /** 화면에 띄울 다음 안내 */
@@ -13,17 +13,15 @@ data class NextTurn(
 private val SKIP = setOf("depart", "new name", "continue", "notification")
 
 /**
- * stepIndex 번째 단계에 있을 때 다음으로 안내할 지점.
- * 도로 이름만 바뀌는 단계는 건너뛰고 거리는 합산한다.
+ * 출발점에서 alongM 만큼 왔을 때 다음으로 안내할 지점.
+ * 도로 이름만 바뀌는 단계는 건너뛴다.
  */
-fun nextTurn(route: Route, stepIndex: Int = 0): NextTurn? {
-    var distance = 0.0
-    for (i in stepIndex until route.steps.size) {
-        val step = route.steps[i]
-        if (i > stepIndex && step.type !in SKIP) {
-            return NextTurn(distance, instructionOf(step), arrowOf(step))
-        }
-        distance += step.distanceM
+fun nextTurn(line: RouteLine, alongM: Double): NextTurn? {
+    val steps = line.route.steps
+    for (i in 1 until steps.size) {
+        val at = line.stepAlongM[i]
+        if (at <= alongM + 5 || steps[i].type in SKIP) continue
+        return NextTurn(at - alongM, instructionOf(steps[i]), arrowOf(steps[i]))
     }
     return null
 }

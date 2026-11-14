@@ -1,54 +1,57 @@
 package com.gachigayo
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.lifecycle.lifecycleScope
+import androidx.core.content.ContextCompat
 import com.gachigayo.core.designsystem.GachiTheme
-import com.gachigayo.data.route.LngLat
-import com.gachigayo.data.route.RouteRepository
+import com.gachigayo.feature.drive.DemoTrip
 import com.gachigayo.feature.drive.DriveScreen
-import com.gachigayo.feature.drive.DriveState
-import kotlinx.coroutines.launch
-
-/** 시연용 여정: 서울 → 강릉 */
-private object DemoTrip {
-    val start = LngLat(127.0276, 37.4979)      // 서울 강남역 부근
-    val destination = LngLat(128.8761, 37.7519) // 강릉 시내
-    const val destinationName = "강릉 할머니댁"
-}
+import com.gachigayo.feature.drive.DriveViewModel
+import com.gachigayo.feature.drive.LocationMode
 
 class MainActivity : ComponentActivity() {
 
-    private val routes = RouteRepository()
-    private var state by mutableStateOf<DriveState>(DriveState.Loading)
+    private val drive: DriveViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
+            val ui by drive.ui.collectAsState()
+            val askLocation = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestMultiplePermissions(),
+            ) { result -> drive.useMode(LocationMode.GPS, gpsGranted = result.values.any { it }) }
+
             GachiTheme(dark = false) {
                 DriveScreen(
-                    state = state,
-                    me = DemoTrip.start,
-                    destinationName = DemoTrip.destinationName,
-                    onRetry = ::loadRoute,
+                    ui = ui,
+                    destinationName = DemoTrip.DESTINATION_NAME,
+                    onRetry = { drive.loadRoute() },
+                    onTogglePlay = drive::toggleSimulation,
+                    onSpeed = drive::setSimSpeed,
+                    onMode = { mode ->
+                        if (mode == LocationMode.GPS && !hasLocationPermission()) {
+                            askLocation.launch(
+                                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
+                            )
+                        } else {
+                            drive.useMode(mode, gpsGranted = hasLocationPermission())
+                        }
+                    },
+                    onToggleFollow = drive::toggleFollow,
+                    onRestart = drive::restart,
                 )
             }
         }
-        loadRoute()
     }
 
-    private fun loadRoute() {
-        state = DriveState.Loading
-        lifecycleScope.launch {
-            state = runCatching { routes.fetch(DemoTrip.start, DemoTrip.destination) }
-                .fold(
-                    onSuccess = { DriveState.Ready(it) },
-                    onFailure = { DriveState.Error(it.message ?: "경로를 찾지 못했어요") },
-                )
-        }
-    }
+    private fun hasLocationPermission() =
+        ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
 }
