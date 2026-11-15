@@ -910,14 +910,14 @@ private fun InviteCover(ui: DriveUi, a: GroupActions) {
 
 @Composable
 private fun ArrivedCover(ui: DriveUi, destinationName: String, a: GroupActions) {
-    Text("$destinationName 도착", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = GachiColors.Ink)
-    Text("오늘 함께 달린 기록이에요. 추억 카드로 남겨 둘게요.", fontSize = 15.sp, color = GachiColors.Muted)
+    Text("오늘 함께 만든 추억", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = GachiColors.Ink)
+    Text("$destinationName 도착 · 따로 달렸지만, 기억은 하나예요. 추억 카드로 남겨 둘게요.", fontSize = 15.sp, color = GachiColors.Muted)
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         listOf(
-            formatDuration(ui.simElapsedS) to "함께 달린 시간",
-            "${ui.stopsVisited}곳" to "같이 들른 휴게소",
             "${ui.songs}곡" to "같이 들은 노래",
+            "${ui.voiceSent}개" to "주고받은 음성 메시지",
             "${ui.roulettes}번" to "벌칙 룰렛",
+            "${ui.stopsVisited}곳" to "같이 들른 휴게소",
         ).forEach { (v, l) ->
             Column(
                 Modifier.weight(1f).background(GachiColors.Soft, Small).padding(14.dp),
@@ -928,6 +928,7 @@ private fun ArrivedCover(ui: DriveUi, destinationName: String, a: GroupActions) 
             }
         }
     }
+    Text("함께 달린 시간 ${formatDuration(ui.simElapsedS)}", fontSize = 14.sp, color = GachiColors.Muted)
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Avatar(GroupDemo.ME, 30)

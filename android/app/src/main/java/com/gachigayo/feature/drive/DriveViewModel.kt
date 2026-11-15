@@ -90,6 +90,7 @@ data class DriveUi(
     val songs: Int = 0,
     val roulettes: Int = 0,
     val songIndex: Int = 0,
+    val voiceSent: Int = 0,
     val voice: Voice = Voice.RABBIT,
     val recording: Boolean = false,
     val draft: String? = null,
@@ -306,7 +307,7 @@ class DriveViewModel(app: Application) : AndroidViewModel(app) {
         val s = _ui.value
         val text = s.draft ?: VOICE_PHRASES[s.voiceMsgs.size % VOICE_PHRASES.size]
         val msg = VoiceMsg(System.nanoTime(), s.voice, text, (text.length / 4).coerceIn(2, 9))
-        _ui.update { it.copy(voiceMsgs = listOf(msg) + it.voiceMsgs.take(3), draft = null, recording = false) }
+        _ui.update { it.copy(voiceMsgs = listOf(msg) + it.voiceMsgs.take(3), draft = null, recording = false, voiceSent = it.voiceSent + 1) }
         showToast("${s.voice.label} 목소리로 보냈어요", "차량 3대에 공유됨 · 각 차에서 ${s.voice.label} 목소리로 재생돼요")
         speakAs(text, s.voice)
     }
@@ -423,8 +424,9 @@ class DriveViewModel(app: Application) : AndroidViewModel(app) {
             }
             speak("${name}에 도착했어요. ${(s.stayS / 60).toInt()}분 쉬어 가요.")
         }
-        val chargePlanned = s.proposalReasonCharge && s.stopAlongM != null
-        if (battery <= 25 && !nudgeShown && !chargePlanned && !reachedStop) {
+        // 이미 휴게소에 들르기로 했거나 쉬는 중이면 충전 제안을 미룬다
+        val stopPlanned = s.stopAlongM != null || s.resting
+        if (battery <= 25 && !nudgeShown && !stopPlanned && !reachedStop) {
             nudgeShown = true
             _ui.update { it.copy(nudge = true) }
             speak("배터리가 ${battery}퍼센트예요. 충전 휴게소를 같이 들를지 물어볼까요?")
