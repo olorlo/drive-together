@@ -21,6 +21,8 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            // 공모전 제출용: 별도 키스토어 없이 누구 PC에서든 설치 가능한 release APK를 만들기 위해 debug 키로 서명
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
