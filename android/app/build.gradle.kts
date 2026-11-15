@@ -11,8 +11,8 @@ android {
         applicationId = "com.gachigayo"
         minSdk = 28
         targetSdk = 34 // Pleos Connect 에뮬레이터 = Android 14 (API 34)
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.1.1"
     }
 
     // 차량 API (android.car) 사용
@@ -21,6 +21,8 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            // 공모전 제출용: 별도 키스토어 없이 누구 PC에서든 설치 가능한 release APK를 만들기 위해 debug 키로 서명
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 

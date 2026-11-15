@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 같이 가요 앱 아이콘: 차 3대가 한 목적지로 모이는 그림.
+     Pleos 런처는 아이콘을 확대해 가운데만 보여 주므로, 그림 파일 자체에 여백을 넣었다(그림은 가운데 58%) -->
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:src="@drawable/ic_launcher_art"
+    android:filter="true" />
