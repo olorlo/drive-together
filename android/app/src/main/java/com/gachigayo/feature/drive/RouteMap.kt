@@ -18,6 +18,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.gachigayo.data.route.LngLat
 import com.gachigayo.data.route.RouteLine
+import kotlinx.coroutines.delay
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
@@ -153,7 +154,11 @@ fun RouteMap(
         val bottom = px(padding.bottom).toInt()
         if (viewSize.width <= left + right || viewSize.height <= top + bottom) return@LaunchedEffect
         val bounds = LatLngBounds.Builder().includes(line.points.map { LatLng(it.lat, it.lng) }).build()
-        m.easeCamera(CameraUpdateFactory.newLatLngBounds(bounds, left, top, right, bottom), 700)
+        // 지도 엔진(GL 화면)이 새 크기를 반영하는 시점이 뷰 크기보다 늦을 수 있어, 잠시 뒤 맞추고 한 번 더 맞춘다
+        delay(300)
+        m.moveCamera(CameraUpdateFactory.newLatLngBounds(bounds, left, top, right, bottom))
+        delay(900)
+        m.easeCamera(CameraUpdateFactory.newLatLngBounds(bounds, left, top, right, bottom), 400)
     }
 }
 
