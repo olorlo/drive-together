@@ -20,6 +20,8 @@ android/captures/
 android/.externalNativeBuild/
 android/.cxx/
 *.apk
+# 공모전 제출용 APK (apk/팀명_앱이름_release.apk)만 예외로 커밋
+!apk/*.apk
 *.aab
 *.ap_
 *.dex
