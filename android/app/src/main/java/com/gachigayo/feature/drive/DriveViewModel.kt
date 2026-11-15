@@ -33,6 +33,9 @@ import kotlin.math.sin
 /** 위치를 어디서 받는지 */
 enum class LocationMode { SIMULATION, GPS }
 
+/** 그룹 단계: 만들기 → 초대(참여 대기) → 함께 주행 → 끝 */
+enum class GroupPhase { CREATE, INVITE, DRIVE, ENDED }
+
 data class DriveUi(
     val loading: Boolean = true,
     val error: String? = null,
@@ -62,6 +65,12 @@ data class DriveUi(
     val reason: Reason = Reason.TOILET,
     val nudge: Boolean = false,
     val toast: GroupToast? = null,
+    val phase: GroupPhase = GroupPhase.CREATE,
+    val joined: Set<String> = setOf(GroupDemo.ME.id),
+    val askOpen: Boolean = false,
+    val stopsVisited: Int = 0,
+    val simElapsedS: Double = 0.0,
+    val lastDiffMin: Int? = null,
 ) {
     val remainingM: Double get() = line?.let { (it.lengthM - alongM).coerceAtLeast(0.0) } ?: 0.0
     val remainingS: Double
@@ -145,6 +154,45 @@ class DriveViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    // ---------- 그룹 만들기·초대·출발 ----------
+
+    fun createGroup() {
+        if (_ui.value.phase != GroupPhase.CREATE) return
+        _ui.update { it.copy(phase = GroupPhase.INVITE) }
+        // 시연: 초대 코드를 받은 차들이 차례로 참여
+        GroupDemo.OTHERS.forEachIndexed { i, m ->
+            viewModelScope.launch {
+                delay(1600L + i * 1800L)
+                _ui.update { it.copy(joined = it.joined + m.id) }
+            }
+        }
+    }
+
+    fun goTogether() {
+        val s = _ui.value
+        if (s.phase != GroupPhase.INVITE || s.joined.size < 2) return
+        _ui.update { it.copy(phase = GroupPhase.DRIVE, joined = GroupDemo.ALL.map { m -> m.id }.toSet()) }
+        speak("모두 출발해요. ${DemoTrip.DESTINATION_NAME}까지 같이 가요.")
+        if (isSimMode()) startSimulation()
+    }
+
+    private fun isSimMode() = _ui.value.mode == LocationMode.SIMULATION
+
+    fun endGroup() {
+        stop()
+        _ui.update { it.copy(phase = GroupPhase.ENDED, proposal = null, sheetOpen = false, nudge = false) }
+    }
+
+    fun openAsk() = _ui.update { it.copy(askOpen = true, sheetOpen = false) }
+
+    /** 쉬는 중에 '출발 준비 완료' */
+    fun resumeNow() {
+        if (_ui.value.restLeftS > 0) {
+            _ui.update { it.copy(restLeftS = 0.0, restName = null) }
+            speak("다시 출발해요.")
+        }
+    }
+
     // ---------- 시뮬레이션 ----------
 
     fun toggleSimulation() {
@@ -156,8 +204,7 @@ class DriveViewModel(app: Application) : AndroidViewModel(app) {
     fun setSimSpeed(x: Int) = _ui.update { it.copy(simSpeed = x) }
 
     private fun startSimulation() {
-        if (_ui.value.line == null) return
-        if (_ui.value.arrived) restart()
+        if (_ui.value.line == null || _ui.value.arrived || _ui.value.phase != GroupPhase.DRIVE) return
         driveJob?.cancel()
         _ui.update { it.copy(running = true, follow = true) }
         driveJob = viewModelScope.launch {
@@ -179,6 +226,7 @@ class DriveViewModel(app: Application) : AndroidViewModel(app) {
     private fun stepMe(dtSim: Double) {
         val s = _ui.value
         val line = s.line ?: return
+        _ui.update { it.copy(simElapsedS = it.simElapsedS + dtSim) }
         if (s.restLeftS > 0) {
             val left = s.restLeftS - dtSim
             if (left <= 0) {
@@ -210,7 +258,12 @@ class DriveViewModel(app: Application) : AndroidViewModel(app) {
         if (reachedStop) {
             val name = s.stopName ?: "휴게소"
             val charged = if (s.proposalReasonCharge) (battery + 38).coerceAtMost(80) else battery
-            _ui.update { it.copy(restLeftS = it.stayS, restName = name, stopAlongM = null, speedKmh = 0, battery = charged, proposalReasonCharge = false) }
+            _ui.update {
+                it.copy(
+                    restLeftS = it.stayS, restName = name, stopAlongM = null, speedKmh = 0, battery = charged,
+                    proposalReasonCharge = false, stopsVisited = it.stopsVisited + 1,
+                )
+            }
             speak("${name}에 도착했어요. ${(s.stayS / 60).toInt()}분 쉬어 가요.")
         }
         val chargePlanned = s.proposalReasonCharge && s.stopAlongM != null
@@ -306,7 +359,7 @@ class DriveViewModel(app: Application) : AndroidViewModel(app) {
             votes = GroupDemo.ALL.associate { it.id to if (it.id == GroupDemo.ME.id) true else null },
             at = now(),
         )
-        _ui.update { it.copy(proposal = p, sheetOpen = false) }
+        _ui.update { it.copy(proposal = p, sheetOpen = false, askOpen = true) }
         // 시연: 다른 차들이 차례로 '좋아요'
         GroupDemo.OTHERS.forEachIndexed { i, m ->
             viewModelScope.launch {
@@ -335,7 +388,8 @@ class DriveViewModel(app: Application) : AndroidViewModel(app) {
             votes = GroupDemo.ALL.associate { it.id to if (it.id == from.id) true else null },
             at = now(),
         )
-        _ui.update { it.copy(proposal = p, sheetOpen = false) }
+        _ui.update { it.copy(proposal = p, sheetOpen = false, askOpen = false) }
+        showToast("${GroupDemo.subject(from.alias)} 물어봤어요", "차 옆 말풍선이나 '질문 보기'를 눌러 대답해 주세요")
         speak("${GroupDemo.subject(from.alias)} 물어봤어요. ${p.text}")
         viewModelScope.launch {
             delay(1500)
@@ -352,7 +406,8 @@ class DriveViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun closeProposal() {
-        if (_ui.value.proposal?.status != ProposalStatus.OPEN) _ui.update { it.copy(proposal = null) }
+        if (_ui.value.proposal?.status != ProposalStatus.OPEN) _ui.update { it.copy(proposal = null, askOpen = false) }
+        else _ui.update { it.copy(askOpen = false) }
     }
 
     private fun vote(id: String, yes: Boolean) {
@@ -416,6 +471,11 @@ class DriveViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 val diff = ((_ui.value.remainingS - before) / 60).toInt()
                 val sign = if (diff >= 0) "+" else ""
+                _ui.update { it.copy(lastDiffMin = diff) }
+                viewModelScope.launch {
+                    delay(15_000)
+                    _ui.update { it.copy(lastDiffMin = null) }
+                }
                 showToast("다 같이 ${rest.name}에 들러요", "모든 차 경로 변경 · 도착 $sign${diff}분 · 계획 v$plan")
                 speak("모두 좋대요. 다 같이 ${rest.name}에 들러요. 도착 시간이 ${abs(diff)}분 ${if (diff >= 0) "늦어져요" else "빨라져요"}.")
                 refreshStatuses()
@@ -430,7 +490,9 @@ class DriveViewModel(app: Application) : AndroidViewModel(app) {
     private fun clearProposalLater(id: Int) {
         viewModelScope.launch {
             delay(2600)
-            _ui.update { if (it.proposal?.id == id && it.proposal.status != ProposalStatus.OPEN) it.copy(proposal = null) else it }
+            _ui.update {
+                if (it.proposal?.id == id && it.proposal.status != ProposalStatus.OPEN) it.copy(proposal = null, askOpen = false) else it
+            }
         }
     }
 

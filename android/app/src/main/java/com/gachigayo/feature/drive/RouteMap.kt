@@ -61,8 +61,19 @@ private const val FOLLOW_ZOOM = 13.2
 /** 화면 가장자리 UI(안내 카드, 하단 바)에 가리지 않도록 지도에 주는 여백 (dp) */
 data class MapPadding(val left: Int, val top: Int, val right: Int, val bottom: Int)
 
-/** 함께 가는 다른 차 (색은 #RRGGBB) */
-data class MapCar(val at: LngLat, val color: String, val label: String)
+/** 지도 위의 차 (내 차 포함). bearing = 진행 방향(북 0°), bubble = 질문 말풍선 글자 */
+data class MapCar(
+    val id: String,
+    val at: LngLat,
+    val bearing: Float,
+    val color: Int,
+    val label: String,
+    val me: Boolean,
+    val bubble: String? = null,
+)
+
+/** + / − 버튼으로 지도 확대·축소 (id가 바뀔 때마다 한 번) */
+data class ZoomRequest(val id: Int, val delta: Double)
 
 /** 다른 차의 경로선 */
 data class MapLine(val points: List<LngLat>, val color: String)
@@ -81,6 +92,7 @@ fun RouteMap(
     others: List<MapCar> = emptyList(),
     otherLines: List<MapLine> = emptyList(),
     pins: List<MapPin> = emptyList(),
+    zoomRequest: ZoomRequest? = null,
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current.density
@@ -93,6 +105,7 @@ fun RouteMap(
     var map by remember { mutableStateOf<MapLibreMap?>(null) }
     var style by remember { mutableStateOf<Style?>(null) }
     var viewSize by remember { mutableStateOf(IntSize.Zero) }
+    var followZoom by remember { mutableStateOf(FOLLOW_ZOOM) }
 
     DisposableEffect(lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
@@ -156,19 +169,36 @@ fun RouteMap(
         )
     }
 
-    // 함께 가는 차들의 위치
+    // 차들의 위치 (차 아이콘 + 이름표 + 질문 말풍선)
     LaunchedEffect(others, style) {
         val s = style ?: return@LaunchedEffect
+        others.forEach { c ->
+            val car = "car-${c.id}"
+            val tag = "tag-${c.id}"
+            if (s.getImage(car) == null) s.addImage(car, MapIcons.car(c.color, c.me))
+            if (s.getImage(tag) == null) s.addImage(tag, MapIcons.tag(c.label, c.color, c.me))
+            c.bubble?.let { b -> if (s.getImage("bubble-$b") == null) s.addImage("bubble-$b", MapIcons.bubble(b)) }
+        }
         (s.getSource(OTHERS_SRC) as? GeoJsonSource)?.setGeoJson(
             FeatureCollection.fromFeatures(
-                others.map { c ->
+                others.sortedBy { it.me }.map { c ->
                     Feature.fromGeometry(Point.fromLngLat(c.at.lng, c.at.lat)).also {
-                        it.addStringProperty("color", c.color)
-                        it.addStringProperty("label", c.label)
+                        it.addStringProperty("car", "car-${c.id}")
+                        it.addStringProperty("tag", "tag-${c.id}")
+                        it.addNumberProperty("rot", c.bearing - 90f)
+                        c.bubble?.let { b -> it.addStringProperty("bubble", "bubble-$b") }
                     }
                 },
             ),
         )
+    }
+
+    // + / − 확대·축소
+    LaunchedEffect(zoomRequest) {
+        val z = zoomRequest ?: return@LaunchedEffect
+        val m = map ?: return@LaunchedEffect
+        if (follow) followZoom = (followZoom + z.delta).coerceIn(8.0, 16.0)
+        else m.animateCamera(CameraUpdateFactory.zoomBy(z.delta), 300)
     }
 
     // 휴게소 핀
@@ -187,7 +217,7 @@ fun RouteMap(
     }
 
     // 내 차 위치 + 따라가기 카메라
-    LaunchedEffect(me, follow, style) {
+    LaunchedEffect(me, follow, style, followZoom) {
         val s = style ?: return@LaunchedEffect
         val m = map ?: return@LaunchedEffect
         (s.getSource(ME_SRC) as? GeoJsonSource)?.setGeoJson(pointOrEmpty(me))
@@ -196,7 +226,7 @@ fun RouteMap(
                 CameraUpdateFactory.newCameraPosition(
                     CameraPosition.Builder()
                         .target(LatLng(me.lat, me.lng))
-                        .zoom(FOLLOW_ZOOM)
+                        .zoom(followZoom)
                         .padding(px(padding.left), px(padding.top), px(padding.right), px(padding.bottom))
                         .build(),
                 ),
@@ -305,34 +335,32 @@ private fun addLayers(style: Style) {
             PropertyFactory.circleRadius(24f),
         ),
     )
+    // 차: 진행 방향으로 회전하는 차 아이콘 + 아래 이름표 + 위 질문 말풍선 (웹 데모와 같은 모양)
     style.addLayer(
-        CircleLayer("me-dot", ME_SRC).withProperties(
-            PropertyFactory.circleColor(TEAL),
-            PropertyFactory.circleRadius(11f),
-            PropertyFactory.circleStrokeColor(AndroidColor.WHITE),
-            PropertyFactory.circleStrokeWidth(4f),
-        ),
-    )
-    // 함께 가는 차: 각 차 색 + 이름표
-    style.addLayer(
-        CircleLayer("others-dot", OTHERS_SRC).withProperties(
-            PropertyFactory.circleColor(Expression.toColor(Expression.get("color"))),
-            PropertyFactory.circleRadius(11f),
-            PropertyFactory.circleStrokeColor(AndroidColor.WHITE),
-            PropertyFactory.circleStrokeWidth(4f),
+        SymbolLayer("cars-icon", OTHERS_SRC).withProperties(
+            PropertyFactory.iconImage(Expression.get("car")),
+            PropertyFactory.iconRotate(Expression.get("rot")),
+            PropertyFactory.iconRotationAlignment(Property.ICON_ROTATION_ALIGNMENT_MAP),
+            PropertyFactory.iconAllowOverlap(true),
+            PropertyFactory.iconIgnorePlacement(true),
         ),
     )
     style.addLayer(
-        SymbolLayer("others-label", OTHERS_SRC).withProperties(
-            PropertyFactory.textField(Expression.get("label")),
-            PropertyFactory.textFont(LABEL_FONT),
-            PropertyFactory.textSize(15f),
-            PropertyFactory.textColor(Expression.toColor(Expression.get("color"))),
-            PropertyFactory.textHaloColor(AndroidColor.WHITE),
-            PropertyFactory.textHaloWidth(2.5f),
-            PropertyFactory.textOffset(arrayOf(0f, -1.7f)),
-            PropertyFactory.textAllowOverlap(true),
-            PropertyFactory.textIgnorePlacement(true),
+        SymbolLayer("cars-tag", OTHERS_SRC).withProperties(
+            PropertyFactory.iconImage(Expression.get("tag")),
+            PropertyFactory.iconAnchor(Property.ICON_ANCHOR_TOP),
+            PropertyFactory.iconOffset(arrayOf(0f, 26f)),
+            PropertyFactory.iconAllowOverlap(true),
+            PropertyFactory.iconIgnorePlacement(true),
+        ),
+    )
+    style.addLayer(
+        SymbolLayer("cars-bubble", OTHERS_SRC).withProperties(
+            PropertyFactory.iconImage(Expression.get("bubble")),
+            PropertyFactory.iconAnchor(Property.ICON_ANCHOR_BOTTOM),
+            PropertyFactory.iconOffset(arrayOf(0f, -28f)),
+            PropertyFactory.iconAllowOverlap(true),
+            PropertyFactory.iconIgnorePlacement(true),
         ),
     )
 }
