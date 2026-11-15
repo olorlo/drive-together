@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -72,6 +73,7 @@ fun RouteMap(
     }
     var map by remember { mutableStateOf<MapLibreMap?>(null) }
     var style by remember { mutableStateOf<Style?>(null) }
+    var viewSize by remember { mutableStateOf(IntSize.Zero) }
 
     DisposableEffect(lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
@@ -92,6 +94,9 @@ fun RouteMap(
         modifier = modifier,
         factory = {
             mapView.also { view ->
+                view.addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+                    viewSize = IntSize(v.width, v.height)
+                }
                 view.getMapAsync { m ->
                     m.uiSettings.isLogoEnabled = false
                     m.uiSettings.isCompassEnabled = false
@@ -138,17 +143,17 @@ fun RouteMap(
     }
 
     // 전체 보기: 경로가 바뀌거나 따라가기를 끄면 경로 전체가 보이게
-    LaunchedEffect(line, follow, style) {
+    // 지도 뷰 크기가 정해지기 전(0이거나 여백보다 작을 때)에 맞추면 엉뚱한 곳을 비추므로, 크기가 정해지거나 바뀔 때 다시 맞춘다
+    LaunchedEffect(line, follow, style, viewSize) {
         val m = map ?: return@LaunchedEffect
         if (style == null || follow || line == null || line.points.size < 2) return@LaunchedEffect
+        val left = px(padding.left).toInt()
+        val top = px(padding.top).toInt()
+        val right = px(padding.right).toInt()
+        val bottom = px(padding.bottom).toInt()
+        if (viewSize.width <= left + right || viewSize.height <= top + bottom) return@LaunchedEffect
         val bounds = LatLngBounds.Builder().includes(line.points.map { LatLng(it.lat, it.lng) }).build()
-        m.easeCamera(
-            CameraUpdateFactory.newLatLngBounds(
-                bounds,
-                px(padding.left).toInt(), px(padding.top).toInt(), px(padding.right).toInt(), px(padding.bottom).toInt(),
-            ),
-            700,
-        )
+        m.easeCamera(CameraUpdateFactory.newLatLngBounds(bounds, left, top, right, bottom), 700)
     }
 }
 
