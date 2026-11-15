@@ -5,7 +5,7 @@
 같이 이동하는 차들이 하나의 그룹으로 묶여 서로의 위치를 지도 위에서 보고, 휴게소·경로 변경을 제안하면 **모두 동의했을 때 모든 차의 경로가 함께 바뀝니다.**
 
 - 웹 시연(차량 화면 프로토타입): https://olorlo.github.io/drive-together/demo/
-- 시연 영상(1분 55초, Pleos Connect 에뮬레이터에서 APK 실행): 링크 추가 예정
+- 시연 영상(1분 55초, Pleos Connect 에뮬레이터에서 APK 실행): https://youtu.be/nLuuksp60zc
 - APK: [`apk/따로또같이_같이가요_release.apk`](apk/)
 
 ## 현재 구현 범위
