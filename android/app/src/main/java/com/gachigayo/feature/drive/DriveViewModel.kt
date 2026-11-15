@@ -108,6 +108,13 @@ data class DriveUi(
         }
     val next: NextTurn? get() = line?.let { nextTurn(it, alongM, stopName) }
     val resting: Boolean get() = restLeftS > 0
+
+    /** 같은 휴게소로 아직 오고 있는 차 (나 포함). 모두 모일 때까지 쉬는 시간을 세지 않는다 */
+    val stillComing: List<String>
+        get() = buildList {
+            if (stopAlongM != null && alongM < stopAlongM) add(GroupDemo.ME.alias)
+            cars.forEach { c -> if (!c.arrived && c.stopAlongM != null && c.alongM < c.stopAlongM) add(c.member.alias) }
+        }
 }
 
 /** 시연용 여정: 서울 → 강릉 */
@@ -386,6 +393,11 @@ class DriveViewModel(app: Application) : AndroidViewModel(app) {
         val line = s.line ?: return
         _ui.update { it.copy(simElapsedS = it.simElapsedS + dtSim) }
         if (s.restLeftS > 0) {
+            // 같이 쉬기: 다른 차가 아직 오는 중이면 기다린다
+            if (s.stillComing.isNotEmpty()) {
+                _ui.update { it.copy(speedKmh = 0) }
+                return
+            }
             val left = s.restLeftS - dtSim
             if (left <= 0) {
                 _ui.update { it.copy(restLeftS = 0.0, restName = null) }
@@ -415,6 +427,7 @@ class DriveViewModel(app: Application) : AndroidViewModel(app) {
         _ui.update { it.copy(battery = battery) }
         if (reachedStop) {
             val name = s.stopName ?: "휴게소"
+            val coming = _ui.value.stillComing - GroupDemo.ME.alias
             val charged = if (s.proposalReasonCharge) (battery + 38).coerceAtMost(80) else battery
             _ui.update {
                 it.copy(
@@ -422,7 +435,10 @@ class DriveViewModel(app: Application) : AndroidViewModel(app) {
                     proposalReasonCharge = false, stopsVisited = it.stopsVisited + 1,
                 )
             }
-            speak("${name}에 도착했어요. ${(s.stayS / 60).toInt()}분 쉬어 가요.")
+            speak(
+                if (coming.isEmpty()) "${name}에 도착했어요. ${(s.stayS / 60).toInt()}분 쉬어 가요."
+                else "${name}에 도착했어요. ${coming.joinToString(", ")}을 기다렸다가 같이 쉬어요."
+            )
         }
         // 이미 휴게소에 들르기로 했거나 쉬는 중이면 충전 제안을 미룬다
         val stopPlanned = s.stopAlongM != null || s.resting
@@ -436,10 +452,12 @@ class DriveViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun stepOthers(dtSim: Double) {
         _ui.update { s ->
+            val waiting = s.stillComing.isNotEmpty()
             s.copy(cars = s.cars.map { c ->
                 val line = c.line ?: return@map c
                 if (c.arrived) return@map c
                 if (c.restLeftS > 0) {
+                    if (waiting) return@map c
                     val left = c.restLeftS - dtSim
                     return@map if (left <= 0) c.copy(restLeftS = 0.0, restName = null) else c.copy(restLeftS = left)
                 }

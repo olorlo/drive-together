@@ -317,7 +317,12 @@ private fun RestCard(ui: DriveUi) {
         }
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(ui.restName ?: "휴게소", color = GachiColors.Ink, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Text("쉬는 중 · 약 ${(ui.restLeftS / 60).toInt() + 1}분 뒤 출발", color = GachiColors.Muted, fontSize = 15.sp)
+            val coming = ui.stillComing
+            Text(
+                if (coming.isNotEmpty()) "${coming.joinToString(" · ")} 기다리는 중 · 모이면 같이 쉬어요"
+                else "모두 모였어요 · 약 ${(ui.restLeftS / 60).toInt() + 1}분 뒤 같이 출발",
+                color = GachiColors.Muted, fontSize = 15.sp,
+            )
         }
     }
 }
@@ -915,7 +920,7 @@ private fun ArrivedCover(ui: DriveUi, destinationName: String, a: GroupActions) 
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         listOf(
             "${ui.songs}곡" to "같이 들은 노래",
-            "${ui.voiceSent}개" to "주고받은 음성 메시지",
+            "${ui.voiceSent}개" to "음성 메시지",
             "${ui.roulettes}번" to "벌칙 룰렛",
             "${ui.stopsVisited}곳" to "같이 들른 휴게소",
         ).forEach { (v, l) ->
