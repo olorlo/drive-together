@@ -1,14 +1,76 @@
 # 같이 가요 (drive-together)
 
-같이 이동하는 여러 차량이 하나의 그룹으로 묶여 서로의 위치를 내비 위에서 보고,
-휴게소·경로 변경을 제안하면 **모두 동의했을 때 모든 차의 경로가 함께 바뀌는** 차량용 앱입니다.
+**여러 대의 차로 함께 떠나는 가족이 서로의 위치와 배터리를 보고, 말풍선 요청과 함께 즐기는 놀이로 '따로 달려도 하나의 여행'을 만드는 차량용 그룹 이동 앱**입니다.
+
+같이 이동하는 차들이 하나의 그룹으로 묶여 서로의 위치를 지도 위에서 보고, 휴게소·경로 변경을 제안하면 **모두 동의했을 때 모든 차의 경로가 함께 바뀝니다.**
+
+- 웹 시연(차량 화면 프로토타입): https://olorlo.github.io/drive-together/demo/
+- APK: [`apk/따로또같이_같이가요_release.apk`](apk/)
+
+## 현재 구현 범위
+
+| 구분 | 내용 | 상태 |
+| --- | --- | --- |
+| 차량 앱 (Android) | 지도(MapLibre), 서울 강남 → 강릉 경로 안내(OSRM), 다음 안내 카드, 도착 예정 시각 | 구현 |
+| 차량 앱 (Android) | 시뮬레이션 주행(×1 ~ ×120), 실제 위치(GPS) 주행, 경로 이탈 시 재탐색 | 구현 |
+| 웹 시연 | 그룹 만들기·초대 → 함께 출발 → 휴게소 말풍선 요청과 만장일치 경로 변경 → 배터리 충전 제안 → 같이 듣기 → 벌칙 룰렛 → 도착 | 구현 (그룹 서버·SDK 동작은 페이지 안에서 모의) |
+| 그룹 서버 (FastAPI) | 그룹 참여, 위치 공유(WebSocket), 요청·투표, 계획 버전 관리 | 2차 PT 전까지 구현 예정 |
+| Pleos SDK 연동 | Vehicle(배터리·연료·주행 상태), NaviHelper(경유지 반영), STT·TTS(음성 요청·응답) | 2차 PT 전까지 구현 예정 |
+
+## 실행 방법
+
+### APK로 바로 실행
+
+1. Pleos Connect 에뮬레이터를 켭니다. (아래 [테스트 환경](#테스트-환경) 참고)
+2. APK를 설치합니다. 에뮬레이터 창에 APK 파일을 끌어다 놓거나 다음 명령을 실행합니다.
+   ```bash
+   adb install -r apk/따로또같이_같이가요_release.apk
+   ```
+3. 앱 목록에서 **같이 가요**를 실행합니다.
+4. 서울 강남 → 강릉 경로와 다음 안내가 보이면 정상입니다.
+
+### 앱 조작
+
+오른쪽 위에서 위치를 어디서 받을지 고릅니다.
+
+| 모드 | 사용법 |
+| --- | --- |
+| **시뮬레이션** | 아래 바에서 속도(×1 ~ ×120)를 고르고 **주행 시작**. GPS 없이 항상 똑같이 동작합니다. |
+| **실제 위치** | 처음 한 번 위치 권한을 허용한 뒤, 에뮬레이터 옆 메뉴 `⋯` → **Location** → **Routes**에서 경로를 재생합니다. (또는 `adb emu geo fix <경도> <위도>`) |
+
+### 소스에서 빌드
+
+- **Android Studio:** **Open** → `drive-together/android` 폴더 선택 → Gradle Sync → 실행 대상에서 Pleos 에뮬레이터 선택 → ▶ Run
+- **명령줄 (release APK):**
+  ```bash
+  cd android
+  ./gradlew assembleRelease
+  # 결과: android/app/build/outputs/apk/release/app-release.apk
+  ```
+  release 빌드는 별도 키스토어 없이 설치할 수 있도록 debug 키로 서명됩니다.
+
+자세한 내용은 [android/README.md](android/README.md)를 참고하세요. 그룹 서버 실행 방법은 [server/README.md](server/README.md)에 있습니다.
+
+## 테스트 환경
+
+| 항목 | 내용 |
+| --- | --- |
+| 에뮬레이터 | **Pleos Connect v2.1.0** (Android 14, API 34, x86_64) · 시스템 이미지 `system-images;android-34;pleos_car_emulator;x86_64` |
+| 화면 규격 | 2560 × 1440 (가로, 12.8인치, 160dpi) · 에뮬레이터 기기 정의 `Pleos Connect v2.1.0` |
+| 에뮬레이터 설정 | RAM 4GB, 하드웨어 가속(Windows: WHPX), 처음 실행은 Cold boot |
+| 에뮬레이터 이미지 주소 | Android Studio → Settings → Android SDK → SDK Update Sites에 추가<br>`https://nexus-playground.pleos.ai/repository/raw-releases/connect-avd/2.x/crp-sys-img.xml` |
+| 개발 도구 | Android Studio Rabbit 2 (2026.2.2), JDK 25 (Gradle 데몬), Gradle 9.4.1 / AGP 9.2.0 / Kotlin 2.4.0 |
+| SDK 버전 | compileSdk 37 / minSdk 28 / targetSdk 34 |
+| Pleos SDK | `ai.pleos.playground:Vehicle:2.3.2` |
+| 필요한 설정 | 인터넷 연결 (지도 타일: OpenFreeMap, 경로: OSRM 공개 서버) · 실제 위치 모드는 위치 권한 허용 필요 |
 
 ## 기술 스택
 
 | 영역 | 스택 |
 | --- | --- |
-| 차량 앱 | Android (Kotlin, Jetpack Compose), Vehicle SDK |
+| 차량 앱 | Android (Kotlin, Jetpack Compose), MapLibre, Pleos Vehicle SDK |
 | 그룹 서버 | Python, FastAPI, WebSocket |
+| 웹 시연 | HTML, JavaScript, MapLibre GL JS |
 
 ## 폴더 구조
 
@@ -16,7 +78,8 @@
 drive-together/
 ├── android/        # 차량 앱 (Android Studio 프로젝트 루트) → android/README.md
 ├── server/         # 그룹 서버 (FastAPI) → server/README.md
-├── docs/           # API·메시지 명세, 설계, 회의록 → docs/README.md
+├── docs/           # 웹 시연(docs/demo), API·메시지 명세, 설계 → docs/README.md
+├── apk/            # 공모전 제출용 release APK
 └── .github/        # PR·이슈 템플릿
 ```
 
@@ -26,8 +89,4 @@ drive-together/
 
 ## 팀
 
-| 이름 | 역할 | GitHub |
-| --- | --- | --- |
-|  |  |  |
-|  |  |  |
-|  |  |  |
+팀 **따로또같이** · 현대자동차그룹 차량용 앱 개발 공모전 참가작
