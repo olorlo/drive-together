@@ -27,10 +27,12 @@ import org.maplibre.android.geometry.LatLngBounds
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
+import org.maplibre.android.style.expressions.Expression
 import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory
+import org.maplibre.android.style.layers.SymbolLayer
 import org.maplibre.android.style.sources.GeoJsonSource
 import org.maplibre.geojson.Feature
 import org.maplibre.geojson.FeatureCollection
@@ -44,6 +46,10 @@ private const val REMAIN_SRC = "route-remain"
 private const val PASSED_SRC = "route-passed"
 private const val ME_SRC = "me"
 private const val DEST_SRC = "dest"
+private const val OTHERS_SRC = "others"
+private const val OTHER_LINES_SRC = "other-lines"
+private const val PINS_SRC = "pins"
+private val LABEL_FONT = arrayOf("Noto Sans Bold")
 
 private const val TEAL = "#087F70"
 private const val INK = "#1B2430"
@@ -55,6 +61,15 @@ private const val FOLLOW_ZOOM = 13.2
 /** 화면 가장자리 UI(안내 카드, 하단 바)에 가리지 않도록 지도에 주는 여백 (dp) */
 data class MapPadding(val left: Int, val top: Int, val right: Int, val bottom: Int)
 
+/** 함께 가는 다른 차 (색은 #RRGGBB) */
+data class MapCar(val at: LngLat, val color: String, val label: String)
+
+/** 다른 차의 경로선 */
+data class MapLine(val points: List<LngLat>, val color: String)
+
+/** 휴게소 핀 (planned = 다 같이 들르기로 한 곳) */
+data class MapPin(val at: LngLat, val name: String, val planned: Boolean)
+
 @Composable
 fun RouteMap(
     line: RouteLine?,
@@ -63,6 +78,9 @@ fun RouteMap(
     follow: Boolean,
     padding: MapPadding,
     modifier: Modifier = Modifier,
+    others: List<MapCar> = emptyList(),
+    otherLines: List<MapLine> = emptyList(),
+    pins: List<MapPin> = emptyList(),
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current.density
@@ -125,6 +143,49 @@ fun RouteMap(
         (s.getSource(DEST_SRC) as? GeoJsonSource)?.setGeoJson(pointOrEmpty(line?.points?.lastOrNull()))
     }
 
+    // 함께 가는 차들의 경로선 (경로가 바뀔 때만)
+    LaunchedEffect(otherLines, style) {
+        val s = style ?: return@LaunchedEffect
+        (s.getSource(OTHER_LINES_SRC) as? GeoJsonSource)?.setGeoJson(
+            FeatureCollection.fromFeatures(
+                otherLines.filter { it.points.size >= 2 }.map { l ->
+                    Feature.fromGeometry(LineString.fromLngLats(l.points.map { Point.fromLngLat(it.lng, it.lat) }))
+                        .also { it.addStringProperty("color", l.color) }
+                },
+            ),
+        )
+    }
+
+    // 함께 가는 차들의 위치
+    LaunchedEffect(others, style) {
+        val s = style ?: return@LaunchedEffect
+        (s.getSource(OTHERS_SRC) as? GeoJsonSource)?.setGeoJson(
+            FeatureCollection.fromFeatures(
+                others.map { c ->
+                    Feature.fromGeometry(Point.fromLngLat(c.at.lng, c.at.lat)).also {
+                        it.addStringProperty("color", c.color)
+                        it.addStringProperty("label", c.label)
+                    }
+                },
+            ),
+        )
+    }
+
+    // 휴게소 핀
+    LaunchedEffect(pins, style) {
+        val s = style ?: return@LaunchedEffect
+        (s.getSource(PINS_SRC) as? GeoJsonSource)?.setGeoJson(
+            FeatureCollection.fromFeatures(
+                pins.map { p ->
+                    Feature.fromGeometry(Point.fromLngLat(p.at.lng, p.at.lat)).also {
+                        it.addStringProperty("name", p.name)
+                        it.addStringProperty("color", if (p.planned) TEAL else "#FFFFFF")
+                    }
+                },
+            ),
+        )
+    }
+
     // 내 차 위치 + 따라가기 카메라
     LaunchedEffect(me, follow, style) {
         val s = style ?: return@LaunchedEffect
@@ -173,11 +234,20 @@ private fun pointOrEmpty(p: LngLat?): FeatureCollection =
     else FeatureCollection.fromFeature(Feature.fromGeometry(Point.fromLngLat(p.lng, p.lat)))
 
 private fun addLayers(style: Style) {
-    listOf(PASSED_SRC, REMAIN_SRC, ME_SRC, DEST_SRC).forEach { style.addSource(GeoJsonSource(it)) }
+    listOf(OTHER_LINES_SRC, PASSED_SRC, REMAIN_SRC, PINS_SRC, ME_SRC, DEST_SRC, OTHERS_SRC).forEach { style.addSource(GeoJsonSource(it)) }
 
     val round = arrayOf(
         PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
         PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
+    )
+    // 함께 가는 차들의 경로: 각 차 색으로 얇게
+    style.addLayer(
+        LineLayer("other-lines", OTHER_LINES_SRC).withProperties(
+            PropertyFactory.lineColor(Expression.toColor(Expression.get("color"))),
+            PropertyFactory.lineWidth(4f),
+            PropertyFactory.lineOpacity(0.45f),
+            *round,
+        ),
     )
     // 지나온 길: 회색
     style.addLayer(
@@ -194,6 +264,28 @@ private fun addLayers(style: Style) {
     style.addLayer(
         LineLayer("route-line", REMAIN_SRC).withProperties(
             PropertyFactory.lineColor(TEAL), PropertyFactory.lineWidth(7f), *round,
+        ),
+    )
+    // 휴게소 핀
+    style.addLayer(
+        CircleLayer("pin-dot", PINS_SRC).withProperties(
+            PropertyFactory.circleColor(Expression.toColor(Expression.get("color"))),
+            PropertyFactory.circleRadius(8f),
+            PropertyFactory.circleStrokeColor(TEAL),
+            PropertyFactory.circleStrokeWidth(3f),
+        ),
+    )
+    style.addLayer(
+        SymbolLayer("pin-label", PINS_SRC).withProperties(
+            PropertyFactory.textField(Expression.get("name")),
+            PropertyFactory.textFont(LABEL_FONT),
+            PropertyFactory.textSize(14f),
+            PropertyFactory.textColor(INK),
+            PropertyFactory.textHaloColor(AndroidColor.WHITE),
+            PropertyFactory.textHaloWidth(2f),
+            PropertyFactory.textOffset(arrayOf(0f, 1.4f)),
+            PropertyFactory.textAllowOverlap(true),
+            PropertyFactory.textIgnorePlacement(true),
         ),
     )
     // 목적지
@@ -219,6 +311,28 @@ private fun addLayers(style: Style) {
             PropertyFactory.circleRadius(11f),
             PropertyFactory.circleStrokeColor(AndroidColor.WHITE),
             PropertyFactory.circleStrokeWidth(4f),
+        ),
+    )
+    // 함께 가는 차: 각 차 색 + 이름표
+    style.addLayer(
+        CircleLayer("others-dot", OTHERS_SRC).withProperties(
+            PropertyFactory.circleColor(Expression.toColor(Expression.get("color"))),
+            PropertyFactory.circleRadius(11f),
+            PropertyFactory.circleStrokeColor(AndroidColor.WHITE),
+            PropertyFactory.circleStrokeWidth(4f),
+        ),
+    )
+    style.addLayer(
+        SymbolLayer("others-label", OTHERS_SRC).withProperties(
+            PropertyFactory.textField(Expression.get("label")),
+            PropertyFactory.textFont(LABEL_FONT),
+            PropertyFactory.textSize(15f),
+            PropertyFactory.textColor(Expression.toColor(Expression.get("color"))),
+            PropertyFactory.textHaloColor(AndroidColor.WHITE),
+            PropertyFactory.textHaloWidth(2.5f),
+            PropertyFactory.textOffset(arrayOf(0f, -1.7f)),
+            PropertyFactory.textAllowOverlap(true),
+            PropertyFactory.textIgnorePlacement(true),
         ),
     )
 }

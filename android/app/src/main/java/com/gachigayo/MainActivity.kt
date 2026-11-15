@@ -15,6 +15,8 @@ import com.gachigayo.core.designsystem.GachiTheme
 import com.gachigayo.feature.drive.DemoTrip
 import com.gachigayo.feature.drive.DriveScreen
 import com.gachigayo.feature.drive.DriveViewModel
+import com.gachigayo.feature.drive.GroupActions
+import com.gachigayo.feature.group.Reason
 import com.gachigayo.feature.drive.LocationMode
 
 class MainActivity : ComponentActivity() {
@@ -47,6 +49,19 @@ class MainActivity : ComponentActivity() {
                     },
                     onToggleFollow = drive::toggleFollow,
                     onRestart = drive::restart,
+                    group = GroupActions(
+                        onOpenSheet = { drive.openSheet() },
+                        onCloseSheet = drive::closeSheet,
+                        onReason = drive::setReason,
+                        onPropose = drive::propose,
+                        onVote = drive::myVote,
+                        onCancel = drive::cancelProposal,
+                        onCloseAsk = drive::closeProposal,
+                        onIncoming = drive::simulateIncoming,
+                        onNudgeYes = { drive.openSheet(Reason.CHARGE) },
+                        onNudgeNo = drive::dismissNudge,
+                        restOptions = { drive.restOptions(it) },
+                    ),
                 )
             }
         }

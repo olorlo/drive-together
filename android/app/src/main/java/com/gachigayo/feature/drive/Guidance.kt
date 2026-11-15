@@ -16,11 +16,15 @@ private val SKIP = setOf("depart", "new name", "continue", "notification")
  * 출발점에서 alongM 만큼 왔을 때 다음으로 안내할 지점.
  * 도로 이름만 바뀌는 단계는 건너뛴다.
  */
-fun nextTurn(line: RouteLine, alongM: Double): NextTurn? {
+fun nextTurn(line: RouteLine, alongM: Double, viaName: String? = null): NextTurn? {
     val steps = line.route.steps
     for (i in 1 until steps.size) {
         val at = line.stepAlongM[i]
         if (at <= alongM + 5 || steps[i].type in SKIP) continue
+        // 중간 경유지(그룹이 함께 들르기로 한 휴게소)에 도착하는 단계
+        if (steps[i].type == "arrive" && i < steps.lastIndex) {
+            return NextTurn(at - alongM, "${viaName ?: "경유지"} 진입 · 같이 쉬어요", 40f)
+        }
         return NextTurn(at - alongM, instructionOf(steps[i]), arrowOf(steps[i]))
     }
     return null
