@@ -1,11 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 같이 가요 로고 (웹 데모 docs/demo 의 로고와 같은 모양): 점선 길 + 노란 차 + 흰 차 -->
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <path android:fillColor="#FFFFFF" android:pathData="M31.47,69.23a2.22,2.22 0 1,0 4.44,0a2.22,2.22 0 1,0 -4.44,0zM40.10,63.94a2.22,2.22 0 1,0 4.44,0a2.22,2.22 0 1,0 -4.44,0zM47.63,57.13a2.22,2.22 0 1,0 4.44,0a2.22,2.22 0 1,0 -4.44,0zM55.12,50.25a2.22,2.22 0 1,0 4.44,0a2.22,2.22 0 1,0 -4.44,0zM63.17,44.02a2.22,2.22 0 1,0 4.44,0a2.22,2.22 0 1,0 -4.44,0zM71.90,38.86a2.22,2.22 0 1,0 4.44,0a2.22,2.22 0 1,0 -4.44,0z" />
-    <path android:fillColor="#FFC845" android:pathData="M36.23,59.08h10.15a5.08,5.08 0 0 1 5.08,5.08v3.81a5.08,5.08 0 0 1 -5.08,5.08h-10.15a5.08,5.08 0 0 1 -5.08,-5.08v-3.81a5.08,5.08 0 0 1 5.08,-5.08z" />
-    <path android:fillColor="#FFFFFF" android:pathData="M60.35,42.58h10.15a5.08,5.08 0 0 1 5.08,5.08v3.81a5.08,5.08 0 0 1 -5.08,5.08h-10.15a5.08,5.08 0 0 1 -5.08,-5.08v-3.81a5.08,5.08 0 0 1 5.08,-5.08z" />
-</vector>
+<!-- 같이 가요 앱 아이콘: 차 3대가 한 목적지로 모이는 그림.
+     런처가 가장자리를 잘라도 그림이 다 보이도록 판을 108dp 중 약 78%(사방 12dp 여백)로 둔다 -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/ic_launcher_art"
+    android:inset="12dp" />
