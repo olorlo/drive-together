@@ -96,3 +96,52 @@ data class GroupCar(
 }
 
 data class GroupToast(val title: String, val sub: String, val id: Long = System.nanoTime())
+
+// ---------- 함께 놀기 (시연: 음원 재생·차량 제어 없이 화면으로만 보여 준다) ----------
+
+data class Track(val title: String, val lengthS: Int, val requestedBy: String? = null)
+
+object Song {
+    const val ARTIST = "같이 가요 플레이리스트"
+    val PLAYLIST = listOf(
+        Track("함께 떠나는 길", 236),
+        Track("가을 고속도로", 214, requestedBy = "C"),
+        Track("할머니댁 가는 길", 198, requestedBy = "B"),
+    )
+}
+
+/** 캐릭터 음성: TTS 높낮이·빠르기로 목소리를 바꾼다 */
+enum class Voice(val label: String, val emoji: String, val pitch: Float, val rate: Float) {
+    RABBIT("토끼", "🐰", 1.7f, 1.1f),
+    BEAR("곰", "🐻", 0.6f, 0.9f),
+    ROBOT("로봇", "🤖", 1.0f, 0.75f),
+}
+
+data class VoiceMsg(val id: Long, val voice: Voice, val text: String, val seconds: Int, val shared: Int = 3)
+
+val VOICE_PHRASES = listOf(
+    "우리 휴게소에서 만나요!",
+    "다음 휴게소에서 쉬어요!",
+    "할머니댁 가면 뭐 먹을까?",
+    "작은집 차 보여요! 손 흔들어 줘!",
+)
+
+/** 같이 듣기 제안 (참여 대기) */
+data class MusicAsk(val from: String, val joined: Set<String>)
+
+/** 다 같이 듣는 중 */
+data class Music(val from: String, val startMs: Long)
+
+data class Penalty(val label: String, val sub: String, val sdk: String)
+
+val PENALTIES = listOf(
+    Penalty("동승석 엉따 최강", "시트 히터 3단계 · 60초", "Vehicle SDK · 동승석 시트 히터 3단계 (60초 후 원래대로)"),
+    Penalty("동승석 에어컨 최강", "동승석 18℃ · 풍량 최대 · 60초", "Vehicle SDK · 동승석 공조 18℃, 풍량 최대 (60초 후 원래대로)"),
+)
+
+enum class RoulettePhase { SPIN, RESULT }
+
+data class Roulette(val by: String, val target: String, val penalty: Penalty, val angle: Float, val phase: RoulettePhase, val id: Long)
+
+/** 걸린 차에 벌칙이 실행되는 중 */
+data class PenaltyShow(val car: String, val penalty: Penalty, val id: Long)

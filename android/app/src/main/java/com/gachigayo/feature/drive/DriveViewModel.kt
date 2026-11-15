@@ -11,6 +11,16 @@ import com.gachigayo.data.route.RouteRepository
 import com.gachigayo.feature.group.GroupCar
 import com.gachigayo.feature.group.GroupDemo
 import com.gachigayo.feature.group.GroupToast
+import com.gachigayo.feature.group.Music
+import com.gachigayo.feature.group.MusicAsk
+import com.gachigayo.feature.group.PENALTIES
+import com.gachigayo.feature.group.PenaltyShow
+import com.gachigayo.feature.group.Roulette
+import com.gachigayo.feature.group.RoulettePhase
+import com.gachigayo.feature.group.Song
+import com.gachigayo.feature.group.VOICE_PHRASES
+import com.gachigayo.feature.group.Voice
+import com.gachigayo.feature.group.VoiceMsg
 import com.gachigayo.feature.group.Proposal
 import com.gachigayo.feature.group.ProposalStatus
 import com.gachigayo.feature.group.Reason
@@ -71,6 +81,22 @@ data class DriveUi(
     val stopsVisited: Int = 0,
     val simElapsedS: Double = 0.0,
     val lastDiffMin: Int? = null,
+    // ---------- 함께 놀기 ----------
+    val playOpen: Boolean = false,
+    val musicAsk: MusicAsk? = null,
+    val music: Music? = null,
+    val roulette: Roulette? = null,
+    val penalty: PenaltyShow? = null,
+    val songs: Int = 0,
+    val roulettes: Int = 0,
+    val songIndex: Int = 0,
+    val voice: Voice = Voice.RABBIT,
+    val recording: Boolean = false,
+    val draft: String? = null,
+    val voiceMsgs: List<VoiceMsg> = listOf(
+        VoiceMsg(1, Voice.RABBIT, "우리 휴게소에서 만나요!", 5),
+        VoiceMsg(2, Voice.ROBOT, "다음 휴게소에서 쉬어요!", 4),
+    ),
 ) {
     val remainingM: Double get() = line?.let { (it.lengthM - alongM).coerceAtLeast(0.0) } ?: 0.0
     val remainingS: Double
@@ -192,6 +218,137 @@ class DriveViewModel(app: Application) : AndroidViewModel(app) {
             speak("다시 출발해요.")
         }
     }
+
+    // ---------- 함께 놀기: 같은 노래 듣기 ----------
+
+    fun openPlay() = _ui.update { it.copy(playOpen = true, sheetOpen = false, askOpen = false) }
+    fun closePlay() = _ui.update { it.copy(playOpen = false) }
+
+    /** 노래 공유 (from = 공유한 차) */
+    fun shareSong(from: String = GroupDemo.ME.id) {
+        val s = _ui.value
+        if (s.music != null || s.musicAsk != null) return
+        _ui.update { it.copy(musicAsk = MusicAsk(from, setOf(from))) }
+        if (from == GroupDemo.ME.id) {
+            showToast("노래를 공유했어요", "다른 차가 들어오면 같은 지점부터 함께 재생돼요")
+        } else {
+            val who = GroupDemo.member(from)
+            val title = Song.PLAYLIST[s.songIndex].title
+            showToast("${GroupDemo.subject(who.alias)} 같이 듣재요", "'$title' · 아래에서 '같이 듣기'를 눌러요")
+            speak("${GroupDemo.subject(who.alias)} 같이 듣자고 해요. $title.")
+        }
+        // 시연: 나머지 다른 차들이 차례로 참여
+        GroupDemo.OTHERS.filter { it.id != from }.forEachIndexed { i, m ->
+            viewModelScope.launch {
+                delay(1500L + i * 800L)
+                joinSong(m.id)
+            }
+        }
+    }
+
+    fun simulateSongFromC() = shareSong(GroupDemo.OTHERS[1].id)
+
+    fun joinSong(id: String = GroupDemo.ME.id) {
+        val ask = _ui.value.musicAsk ?: return
+        if (id in ask.joined) return
+        val joined = ask.joined + id
+        if (joined.size == GroupDemo.ALL.size) {
+            _ui.update { it.copy(musicAsk = null, music = Music(ask.from, System.currentTimeMillis()), songs = it.songs + 1) }
+            showToast("다 같이 듣는 중", "세 차 모두 같은 지점부터 재생해요")
+        } else {
+            _ui.update { it.copy(musicAsk = ask.copy(joined = joined)) }
+        }
+    }
+
+    fun stopSong() = _ui.update { it.copy(music = null, musicAsk = null) }
+
+    /** 재생/일시정지: 듣는 중이면 멈추고, 아니면 그룹에 공유해 함께 듣기 시작 */
+    fun togglePlaySong() {
+        val s = _ui.value
+        if (s.music != null || s.musicAsk != null) stopSong() else shareSong()
+    }
+
+    fun nextSong(step: Int = 1) {
+        val n = Song.PLAYLIST.size
+        _ui.update {
+            it.copy(
+                songIndex = ((it.songIndex + step) % n + n) % n,
+                music = it.music?.copy(startMs = System.currentTimeMillis()),
+            )
+        }
+    }
+
+    /** 다음 신청곡: 신청한 차의 곡으로 넘어간다 */
+    fun requestNext() {
+        val next = (_ui.value.songIndex + 1) % Song.PLAYLIST.size
+        val t = Song.PLAYLIST[next]
+        nextSong()
+        val who = t.requestedBy?.let { GroupDemo.member(it).alias } ?: GroupDemo.ME.alias
+        showToast("다음 신청곡 · ${t.title}", "$who 신청 · 세 차 모두 같은 곡으로 넘어가요")
+    }
+
+    // ---------- 함께 놀기: 캐릭터 음성 메시지 ----------
+
+    fun selectVoice(v: Voice) = _ui.update { it.copy(voice = v) }
+
+    /** 녹음 (시연: 예시 문장을 녹음한 것으로 처리) */
+    fun recordVoice() {
+        if (_ui.value.recording) return
+        val phrase = VOICE_PHRASES[(_ui.value.voiceMsgs.size) % VOICE_PHRASES.size]
+        _ui.update { it.copy(recording = true, draft = null) }
+        viewModelScope.launch {
+            delay(1600)
+            _ui.update { it.copy(recording = false, draft = phrase) }
+        }
+    }
+
+    fun sendVoice() {
+        val s = _ui.value
+        val text = s.draft ?: VOICE_PHRASES[s.voiceMsgs.size % VOICE_PHRASES.size]
+        val msg = VoiceMsg(System.nanoTime(), s.voice, text, (text.length / 4).coerceIn(2, 9))
+        _ui.update { it.copy(voiceMsgs = listOf(msg) + it.voiceMsgs.take(3), draft = null, recording = false) }
+        showToast("${s.voice.label} 목소리로 보냈어요", "차량 3대에 공유됨 · 각 차에서 ${s.voice.label} 목소리로 재생돼요")
+        speakAs(text, s.voice)
+    }
+
+    fun playVoice(id: Long) {
+        val m = _ui.value.voiceMsgs.firstOrNull { it.id == id } ?: return
+        speakAs(m.text, m.voice)
+    }
+
+    private fun speakAs(text: String, v: Voice) {
+        addSpeak(text, v.pitch, v.rate)
+    }
+
+    // ---------- 함께 놀기: 벌칙 룰렛 ----------
+
+    fun startRoulette(by: String = GroupDemo.ME.id) {
+        if (_ui.value.roulette != null) return
+        val idx = (0 until GroupDemo.ALL.size).random()
+        val target = GroupDemo.ALL[idx].id
+        val pen = PENALTIES.random()
+        // 바늘(위쪽)에 target 칸 가운데가 오도록: 칸 가운데 각도 = idx*120+60
+        val angle = 4 * 360f + (360f - (idx * 120f + 60f)) + (-20..20).random()
+        val id = System.nanoTime()
+        _ui.update { it.copy(roulette = Roulette(by, target, pen, angle, RoulettePhase.SPIN, id), playOpen = false) }
+        viewModelScope.launch {
+            delay(2900)
+            val r = _ui.value.roulette ?: return@launch
+            if (r.id != id) return@launch
+            _ui.update { it.copy(roulette = r.copy(phase = RoulettePhase.RESULT), penalty = PenaltyShow(target, pen, id), roulettes = it.roulettes + 1) }
+            val who = GroupDemo.member(target)
+            speak("${who.alias} 당첨! ${pen.label}.")
+            delay(9000)
+            _ui.update { if (it.penalty?.id == id) it.copy(penalty = null) else it }
+        }
+    }
+
+    fun simulateRouletteFromB() = startRoulette(GroupDemo.OTHERS[0].id)
+
+    fun closeRoulette() = _ui.update { it.copy(roulette = null) }
+
+    /** 봐주기: 벌칙 취소, 시트·공조 원래대로 */
+    fun cancelPenalty() = _ui.update { it.copy(penalty = null) }
 
     // ---------- 시뮬레이션 ----------
 
@@ -505,8 +662,15 @@ class DriveViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun speak(text: String) {
-        if (ttsReady) runCatching { tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "gachi") }
+    private fun speak(text: String) = addSpeak(text, 1.0f, 1.0f)
+
+    private fun addSpeak(text: String, pitch: Float, rate: Float) {
+        if (!ttsReady) return
+        runCatching {
+            tts?.setPitch(pitch)
+            tts?.setSpeechRate(rate)
+            tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "gachi")
+        }
     }
 
     private fun now(): String = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))

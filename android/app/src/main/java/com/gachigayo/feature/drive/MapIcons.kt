@@ -50,7 +50,7 @@ object MapIcons {
 
     fun bubble(text: String): Bitmap =
         pill(
-            text = "?  $text",
+            text = text,
             bg = Color.parseColor("#FFC845"),
             fg = Color.parseColor("#1B2430"),
             border = Color.parseColor("#FFC845"),
